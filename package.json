@@ -1,0 +1,22 @@
+{
+  "name": "popcornpal",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^25.6.0",
+    "@types/node-telegram-bot-api": "^0.64.14"
+  },
+  "peerDependencies": {
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "@notionhq/client": "2.2.15",
+    "node-telegram-bot-api": "^0.67.0"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch src/index.ts"
+  }
+}

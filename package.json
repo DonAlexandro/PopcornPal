@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@notionhq/client": "2.2.15",
+    "@supabase/supabase-js": "^2.103.3",
     "node-telegram-bot-api": "^0.67.0"
   },
   "scripts": {

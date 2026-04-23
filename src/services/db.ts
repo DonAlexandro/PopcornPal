@@ -1,8 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
-import type { MovieDetails } from "./tmdb";
+import { createClient } from "npm:@supabase/supabase-js@2.103.3";
+import { getEnvVar } from "../runtime/env.ts";
+import type { MovieDetails } from "./tmdb.ts";
 
-const supabaseUrl = process.env.SUPABASE_URL || "";
-const supabaseKey = process.env.SUPABASE_ANON_KEY || "";
+const supabaseUrl = getEnvVar("SUPA_URL") || "";
+const supabaseKey = getEnvVar("SUPA_SECRET_KEY") || "";
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -23,7 +24,7 @@ export async function getMoviesByNotionTitle(
     return null;
   }
 
-  return data.map((movie) => {
+  return data.map((movie: any) => {
     const titleMatch = movie.title.match(/^(.*?) \(\d{4}\)$/);
     const title = titleMatch ? titleMatch[1] : movie.title;
     // In TMDB we receive original title and extract year. In the DB, we have "Title (Year)" format from bot formatting originally, but we can just map back year from the string.

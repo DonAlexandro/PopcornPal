@@ -1,3 +1,5 @@
+import { createSessionStore } from "./bot/create-session-store";
+import { getEnvVar } from "./runtime/env";
 import { setupBot } from "./services/bot";
 
 const requiredEnvVars = [
@@ -8,12 +10,13 @@ const requiredEnvVars = [
 ];
 
 for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
+  if (!getEnvVar(envVar)) {
     console.error(`Missing required environment variable: ${envVar}`);
     process.exit(1);
   }
 }
 
 console.log("Starting PopcornPal bot...");
-setupBot(process.env.TELEGRAM_BOT_TOKEN!);
+const sessionStore = createSessionStore();
+setupBot(getEnvVar("TELEGRAM_BOT_TOKEN")!, sessionStore);
 console.log("Bot is running.");

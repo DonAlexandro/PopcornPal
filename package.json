@@ -3,6 +3,11 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "dev:webhook": "supabase functions serve telegram-bot --no-verify-jwt --env-file supabase/functions/.env.local",
+    "deploy:webhook": "supabase functions deploy telegram-bot --no-verify-jwt",
+    "set:webhook": "bun run src/scripts/set-webhook.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/node": "^25.6.0",
@@ -15,9 +20,5 @@
     "@notionhq/client": "2.2.15",
     "@supabase/supabase-js": "^2.103.3",
     "node-telegram-bot-api": "^0.67.0"
-  },
-  "scripts": {
-    "start": "bun run src/index.ts",
-    "dev": "bun --watch src/index.ts"
   }
 }

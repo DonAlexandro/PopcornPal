@@ -1,7 +1,9 @@
+import { getEnvVar } from "../runtime/env.ts";
+
 export interface MovieDetails {
-    tmdb_id: number;
-    title: string;
-    year: string;
+  tmdb_id: number;
+  title: string;
+  year: string;
   description: string;
   rating: number;
   genres: string[];
@@ -12,7 +14,7 @@ export interface MovieDetails {
 export async function fetchMovieDetails(
   title: string,
 ): Promise<MovieDetails[]> {
-  const apiKey = process.env.TMDB_API_KEY;
+  const apiKey = getEnvVar("TMDB_API_KEY");
   const baseUrl = "https://api.themoviedb.org/3";
 
   const trySearch = async (language: string): Promise<number[] | null> => {

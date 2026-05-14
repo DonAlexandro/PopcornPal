@@ -199,6 +199,20 @@ export async function updateGameInNotion(
   }
 }
 
+export async function getNotionPageTitleById(
+  pageId: string,
+): Promise<string | null> {
+  const notion = new Client({ auth: getEnvVar("NOTION_API_KEY") });
+
+  try {
+    const page = await notion.pages.retrieve({ page_id: pageId });
+    return getPageTitle(page);
+  } catch (error) {
+    console.error("Error retrieving Notion page by id:", error);
+    return null;
+  }
+}
+
 function getPageTitle(page: any): string {
   const titleProperty = Object.values(page.properties).find(
     (prop: any) => prop.type === "title",

@@ -1,6 +1,7 @@
 import type { SessionStore, UserSession } from "./session-store.ts";
 import type { BotMessenger } from "./messenger.ts";
 import {
+  getNotionPageTitleById,
   getRandomGameFromNotion,
   getRandomMovieFromNotion,
   updateGameInNotion,
@@ -176,15 +177,32 @@ async function handleWatchedMovieCallback(
   const index = parts[2] ? Number.parseInt(parts[2], 10) : 0;
   const userState = await sessionStore.get(chatId);
 
-  if (!userState?.options || userState.pageId !== pageId) {
-    await messenger.answerCallbackQuery(callbackQueryId, {
-      text: "Дані застаріли. Знайдіть фільм знову.",
-      show_alert: true,
-    });
-    return;
+  let genres: string[];
+
+  if (userState?.options && userState.pageId === pageId) {
+    genres = userState.options[index] || [];
+  } else {
+    const title = await getNotionPageTitleById(pageId);
+    if (!title) {
+      await messenger.answerCallbackQuery(callbackQueryId, {
+        text: "Не вдалося знайти фільм. Знайдіть його знову.",
+        show_alert: true,
+      });
+      return;
+    }
+
+    const moviesDetails = await getMoviesByNotionTitle(title);
+    if (!moviesDetails || moviesDetails.length === 0) {
+      await messenger.answerCallbackQuery(callbackQueryId, {
+        text: "Не вдалося знайти фільм. Знайдіть його знову.",
+        show_alert: true,
+      });
+      return;
+    }
+
+    genres = moviesDetails[index]?.genres || moviesDetails[0]?.genres || [];
   }
 
-  const genres = userState.options[index] || [];
   await sessionStore.set(chatId, {
     step: "AWAITING_RATING",
     pageId,
@@ -209,24 +227,44 @@ async function handleWatchedGameCallback(
   const pageId = data.slice("played_game_".length);
   const userState = await sessionStore.get(chatId);
 
+  let notionTitle: string;
+  let genres: string[];
+
   if (
-    userState?.step !== "VIEWING_GAME" ||
-    userState.pageId !== pageId ||
-    !userState.notionTitle
+    userState?.step === "VIEWING_GAME" &&
+    userState.pageId === pageId &&
+    userState.notionTitle
   ) {
-    await messenger.answerCallbackQuery(callbackQueryId, {
-      text: "Дані застаріли. Знайдіть гру знову.",
-      show_alert: true,
-    });
-    return;
+    notionTitle = userState.notionTitle;
+    genres = userState.genres || [];
+  } else {
+    const title = await getNotionPageTitleById(pageId);
+    if (!title) {
+      await messenger.answerCallbackQuery(callbackQueryId, {
+        text: "Не вдалося знайти гру. Знайдіть її знову.",
+        show_alert: true,
+      });
+      return;
+    }
+
+    const gameDetails = await getGameByNotionTitle(title);
+    if (!gameDetails) {
+      await messenger.answerCallbackQuery(callbackQueryId, {
+        text: "Не вдалося знайти гру. Знайдіть її знову.",
+        show_alert: true,
+      });
+      return;
+    }
+
+    notionTitle = title;
+    genres = gameDetails.genres || [];
   }
 
   await sessionStore.set(chatId, {
     step: "AWAITING_GAME_RATING",
     pageId,
-    notionTitle: userState.notionTitle,
-    genres: userState.genres,
-    platform: userState.platform,
+    notionTitle,
+    genres,
   });
 
   await messenger.sendMessage(chatId, "Постав свою оцінку грі від 1 до 5:", {

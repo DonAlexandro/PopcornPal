@@ -1,4 +1,4 @@
-import { randomInt } from "node:crypto";
+import { sample } from "npm:remeda";
 import { Client } from "npm:@notionhq/client@2.2.15";
 import { getEnvVar } from "../runtime/env.ts";
 
@@ -44,7 +44,7 @@ export async function getRandomMovieFromNotion(): Promise<{
       throw new Error("No movies found");
     }
 
-    const randomPage = pages[randomInt(pages.length)] as any;
+    const [randomPage] = sample(pages, 1) as any[];
 
     return {
       id: randomPage.id,
@@ -126,7 +126,7 @@ export async function getRandomGameFromNotion(
       throw new Error("No games found");
     }
 
-    const randomPage = pages[randomInt(pages.length)] as any;
+    const [randomPage] = sample(pages, 1) as any[];
 
     return {
       id: randomPage.id,

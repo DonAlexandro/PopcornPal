@@ -1,10 +1,18 @@
-export type SessionStep = "VIEWING_OPTIONS" | "AWAITING_RATING";
+export type SessionStep =
+  | "VIEWING_OPTIONS"
+  | "VIEWING_GAME"
+  | "AWAITING_RATING"
+  | "AWAITING_GAME_PLATFORM"
+  | "AWAITING_GAME_TYPE"
+  | "AWAITING_GAME_RATING";
 
 export interface UserSession {
   step: SessionStep;
-  pageId: string;
+  pageId?: string;
   options?: string[][];
   genres?: string[];
+  platform?: string;
+  notionTitle?: string;
 }
 
 export interface SessionStore {

@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.103.3";
 import { getEnvVar } from "../runtime/env.ts";
+import type { GameDetails } from "./igdb.ts";
 import type { MovieDetails } from "./tmdb.ts";
 
 const supabaseUrl = getEnvVar("SUPA_URL") || "";
@@ -62,5 +63,71 @@ export async function saveMovies(notionTitle: string, movies: MovieDetails[]) {
 
   if (error) {
     console.error("Error saving movies to Supabase:", error);
+  }
+}
+
+export async function getGameByNotionTitle(
+  notionTitle: string,
+): Promise<GameDetails | null> {
+  const { data, error } = await supabase
+    .from("games")
+    .select("*")
+    .eq("notion_title", notionTitle)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching game from Supabase:", error);
+    return null;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const titleMatch = data.title.match(/^(.*?) \((.*?)\)$/);
+
+  return {
+    igdb_id: data.igdb_id,
+    title: titleMatch ? titleMatch[1] : data.title,
+    year: titleMatch ? titleMatch[2] : "N/A",
+    description: data.description,
+    rating: data.rating,
+    genres: data.genres ?? [],
+    posterUrl: data.image,
+    url: data.url,
+  };
+}
+
+export async function saveGame(
+  notionTitle: string,
+  notionPlatform: string,
+  game: GameDetails,
+) {
+  const { error } = await supabase.from("games").insert({
+    igdb_id: game.igdb_id,
+    title: `${game.title} (${game.year})`,
+    notion_title: notionTitle,
+    description: game.description,
+    rating: game.rating,
+    genres: game.genres,
+    image: game.posterUrl,
+    platform: notionPlatform,
+    url: game.url,
+  });
+
+  if (error) {
+    console.error("Error saving game to Supabase:", error);
+  }
+}
+
+export async function deleteGamesByNotionTitle(notionTitle: string) {
+  const { error } = await supabase
+    .from("games")
+    .delete()
+    .eq("notion_title", notionTitle);
+
+  if (error) {
+    console.error("Error deleting games from Supabase:", error);
   }
 }

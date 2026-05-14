@@ -12,8 +12,11 @@ You need:
 - a Telegram bot token from BotFather
 - a production `SUPA_FUNCTION_SECRET`
 - `NOTION_API_KEY`
-- `NOTION_DATABASE_ID`
+- `NOTION_MOVIES_DATABASE_ID`
+- `NOTION_GAMES_DATABASE_ID`
 - `TMDB_API_KEY`
+- `IGDB_CLIENT_ID`
+- `IGDB_CLIENT_SECRET`
 - `SUPA_URL`
 - `SUPA_SECRET_KEY`
 
@@ -65,7 +68,7 @@ supabase db push
 Run:
 
 ```bash
-bun run webhook
+bun run deploy:webhook
 ```
 
 The production webhook URL is:
@@ -82,9 +85,11 @@ Run:
 bun run set:webhook
 ```
 
+This uses Telegram's `secret_token` parameter so the bot function receives the expected `x-telegram-bot-api-secret-token` header.
+
 If you later change `SUPA_FUNCTION_SECRET`, run the same command again with the new value.
 
 ## Notes
 
 - `SESSION_STORE_DRIVER` must be `supabase` in production.
-- `SUPA_SECRET_KEY` is used for persistent bot sessions and movies cache.
+- `SUPA_SECRET_KEY` is used for persistent bot sessions plus movie and game cache data.

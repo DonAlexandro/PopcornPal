@@ -5,7 +5,8 @@ import { setupBot } from "./services/bot";
 const requiredEnvVars = [
   "TELEGRAM_BOT_TOKEN",
   "NOTION_API_KEY",
-  "NOTION_DATABASE_ID",
+  "NOTION_MOVIES_DATABASE_ID",
+  "NOTION_GAMES_DATABASE_ID",
   "TMDB_API_KEY",
 ];
 

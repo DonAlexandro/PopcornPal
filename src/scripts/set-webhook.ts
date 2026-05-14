@@ -27,15 +27,25 @@ async function main() {
     const productionSecret = await promptNonEmpty(rl, "SUPA_FUNCTION_SECRET");
 
     const telegramApiUrl = `https://api.telegram.org/bot${botToken}/setWebhook`;
-    const webhookValue = `url=https://${projectRef}.supabase.co/functions/v1/telegram-bot?secret=${productionSecret}`;
+    const webhookUrl = `https://${projectRef}.supabase.co/functions/v1/telegram-bot`;
+    const webhookValue = `url=${webhookUrl}`;
+    const secretTokenValue = `secret_token=${productionSecret}`;
 
-    const commandPreview = `curl -sG "${telegramApiUrl}" --data-urlencode "${webhookValue}"`;
+    const commandPreview = `curl -sG "${telegramApiUrl}" --data-urlencode "${webhookValue}" --data-urlencode "${secretTokenValue}"`;
 
     console.log("\nRunning command:");
     console.log(commandPreview);
 
     const result = Bun.spawnSync({
-      cmd: ["curl", "-sG", telegramApiUrl, "--data-urlencode", webhookValue],
+      cmd: [
+        "curl",
+        "-sG",
+        telegramApiUrl,
+        "--data-urlencode",
+        webhookValue,
+        "--data-urlencode",
+        secretTokenValue,
+      ],
       stdout: "pipe",
       stderr: "pipe",
     });

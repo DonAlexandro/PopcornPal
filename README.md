@@ -1,6 +1,6 @@
 # PopcornPal
 
-PopcornPal is a Telegram bot that randomly picks a movie from my Notion database and fetches its details (poster, description, rating, etc.) using the TMDB API. It presents the movie directly in my Telegram chat for an easy movie night decision!
+PopcornPal is a Telegram bot that randomly picks a movie or a game from my Notion databases and fetches rich details for Telegram. Movies are enriched with TMDB, while games are enriched with IGDB.
 
 ## Supabase Edge Functions
 
@@ -34,8 +34,11 @@ To run this bot locally, use the Supabase Edge Function webhook flow.
    - `TELEGRAM_BOT_TOKEN`
    - `SUPA_FUNCTION_SECRET`
    - `NOTION_API_KEY`
-   - `NOTION_DATABASE_ID`
+   - `NOTION_MOVIES_DATABASE_ID`
+   - `NOTION_GAMES_DATABASE_ID`
    - `TMDB_API_KEY`
+   - `IGDB_CLIENT_ID`
+   - `IGDB_CLIENT_SECRET`
    - `SUPA_URL`
 
    Notes:
@@ -52,7 +55,7 @@ To run this bot locally, use the Supabase Edge Function webhook flow.
 5. **Serve the Telegram Edge Function locally**:
 
    ```bash
-   bun run webhook
+   bun run dev:webhook
    ```
 
    The bot webhook will be available at `http://localhost:54321/functions/v1/telegram-bot`.
@@ -74,7 +77,7 @@ To run this bot locally, use the Supabase Edge Function webhook flow.
    Replace the placeholders and open this URL:
 
    ```text
-   https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://<YOUR_TUNNEL_URL>/functions/v1/telegram-bot&secret=<SUPA_FUNCTION_SECRET>
+   https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://<YOUR_TUNNEL_URL>/functions/v1/telegram-bot&secret_token=<SUPA_FUNCTION_SECRET>
    ```
 
    If you previously registered the webhook with an older secret, run the same `setWebhook` call again after restarting the local function runtime.

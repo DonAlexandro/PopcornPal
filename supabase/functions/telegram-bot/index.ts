@@ -73,15 +73,13 @@ bot.on("callback_query:data", async (ctx) => {
   );
 });
 
-const handleUpdate = webhookCallback(bot, "std/http");
+const handleUpdate = webhookCallback(
+  bot,
+  "std/http",
+  webhookSecret ? { secretToken: webhookSecret } : undefined,
+);
 
 Deno.serve(async (request) => {
-  const url = new URL(request.url);
-  const webhookSecretHeader = request.headers.get(
-    "x-telegram-bot-api-secret-token",
-  );
-  const webhookSecretQuery = url.searchParams.get("secret");
-
   if (request.method === "GET") {
     return new Response(
       JSON.stringify({
@@ -93,14 +91,6 @@ Deno.serve(async (request) => {
         headers: { "Content-Type": "application/json" },
       },
     );
-  }
-
-  if (
-    webhookSecret &&
-    webhookSecretQuery !== webhookSecret &&
-    webhookSecretHeader !== webhookSecret
-  ) {
-    return new Response("not allowed", { status: 405 });
   }
 
   try {

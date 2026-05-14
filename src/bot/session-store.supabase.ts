@@ -4,9 +4,11 @@ import type { SessionStore, UserSession } from "./session-store.ts";
 interface BotSessionRow {
   chat_id: number;
   step: UserSession["step"];
-  page_id: string;
+  page_id: string | null;
   options: string[][] | null;
   genres: string[] | null;
+  platform: string | null;
+  notion_title: string | null;
 }
 
 export class SupabaseSessionStore implements SessionStore {
@@ -19,7 +21,7 @@ export class SupabaseSessionStore implements SessionStore {
   async get(chatId: number): Promise<UserSession | null> {
     const { data, error } = await this.supabase
       .from("bot_sessions")
-      .select("chat_id, step, page_id, options, genres")
+      .select("chat_id, step, page_id, options, genres, platform, notion_title")
       .eq("chat_id", chatId)
       .maybeSingle<BotSessionRow>();
 
@@ -34,9 +36,11 @@ export class SupabaseSessionStore implements SessionStore {
 
     return {
       step: data.step,
-      pageId: data.page_id,
+      pageId: data.page_id ?? undefined,
       options: data.options ?? undefined,
       genres: data.genres ?? undefined,
+      platform: data.platform ?? undefined,
+      notionTitle: data.notion_title ?? undefined,
     };
   }
 
@@ -44,9 +48,11 @@ export class SupabaseSessionStore implements SessionStore {
     const { error } = await this.supabase.from("bot_sessions").upsert({
       chat_id: chatId,
       step: session.step,
-      page_id: session.pageId,
+      page_id: session.pageId ?? null,
       options: session.options ?? null,
       genres: session.genres ?? null,
+      platform: session.platform ?? null,
+      notion_title: session.notionTitle ?? null,
       updated_at: new Date().toISOString(),
     });
 

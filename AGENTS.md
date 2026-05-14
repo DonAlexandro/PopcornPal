@@ -53,6 +53,7 @@ The Edge Function imports `src/` directly via relative paths (`../../../src/…`
 | `TELEGRAM_BOT_TOKEN`        | Always   | From BotFather                                           |
 | `NOTION_API_KEY`            | Always   |                                                          |
 | `NOTION_MOVIES_DATABASE_ID` | Always   |                                                          |
+| `NOTION_SERIES_DATABASE_ID` | Always   |                                                          |
 | `NOTION_GAMES_DATABASE_ID`  | Always   |                                                          |
 | `TMDB_API_KEY`              | Always   |                                                          |
 | `IGDB_CLIENT_ID`            | Always   |                                                          |
@@ -70,6 +71,7 @@ Local env file: `supabase/functions/.env.local` (copy from `.env.example`).
 - Local development requires `--no-verify-jwt`. The `dev:webhook` script already includes it — do not remove it.
 - After editing `supabase/functions/.env.local`, restart `bun run dev:webhook` to reload env values.
 - DB migrations live in `supabase/migrations/` — run `supabase db push` to apply locally after adding a new migration file.
+- Series recommendations are cached in `public.series` (separate from `public.movies`).
 
 ## Docs
 

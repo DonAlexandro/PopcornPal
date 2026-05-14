@@ -35,6 +35,7 @@ To run this bot locally, use the Supabase Edge Function webhook flow.
    - `SUPA_FUNCTION_SECRET`
    - `NOTION_API_KEY`
    - `NOTION_MOVIES_DATABASE_ID`
+   - `NOTION_SERIES_DATABASE_ID`
    - `NOTION_GAMES_DATABASE_ID`
    - `TMDB_API_KEY`
    - `IGDB_CLIENT_ID`

@@ -56,6 +56,51 @@ export async function getRandomMovieFromNotion(): Promise<{
   }
 }
 
+export async function getRandomSeriesFromNotion(): Promise<{
+  id: string;
+  title: string;
+}> {
+  const notion = new Client({ auth: getEnvVar("NOTION_API_KEY") });
+  const databaseId = getEnvVar("NOTION_SERIES_DATABASE_ID")!;
+
+  try {
+    const response = await notion.databases.query({
+      database_id: databaseId,
+      filter: {
+        or: [
+          {
+            property: "Status",
+            status: {
+              equals: "Backlog",
+            },
+          },
+          {
+            property: "Status",
+            status: {
+              equals: "Plan to watch",
+            },
+          },
+        ],
+      },
+    });
+
+    const pages = response.results;
+    if (pages.length === 0) {
+      throw new Error("No series found");
+    }
+
+    const [randomPage] = sample(pages, 1) as any[];
+
+    return {
+      id: randomPage.id,
+      title: getPageTitle(randomPage),
+    };
+  } catch (error) {
+    console.error("Error fetching series from Notion:", error);
+    throw error;
+  }
+}
+
 export async function getRandomGameFromNotion(
   platformChoice: GamePlatformChoice,
   styleChoice: GameStyleChoice,

@@ -1,7 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.103.3";
 import { getEnvVar } from "../runtime/env.ts";
 import type { GameDetails } from "./igdb.ts";
-import type { MovieDetails } from "./tmdb.ts";
+import type { MovieDetails, SeriesDetails } from "./tmdb.ts";
 
 const supabaseUrl = getEnvVar("SUPA_URL") || "";
 const supabaseKey = getEnvVar("SUPA_SECRET_KEY") || "";
@@ -63,6 +63,64 @@ export async function saveMovies(notionTitle: string, movies: MovieDetails[]) {
 
   if (error) {
     console.error("Error saving movies to Supabase:", error);
+  }
+}
+
+export async function getSeriesByNotionTitle(
+  notionTitle: string,
+): Promise<SeriesDetails[] | null> {
+  const { data, error } = await supabase
+    .from("series")
+    .select("*")
+    .eq("notion_title", notionTitle);
+
+  if (error) {
+    console.error("Error fetching series from Supabase:", error);
+    return null;
+  }
+
+  if (!data || data.length === 0) {
+    return null;
+  }
+
+  return data.map((series: any) => {
+    const titleMatch = series.title.match(/^(.*?) \(\d{4}\)$/);
+    const title = titleMatch ? titleMatch[1] : series.title;
+    const yearMatch = series.title.match(/\((\d{4})\)$/);
+    const year = yearMatch ? yearMatch[1] : "N/A";
+
+    return {
+      tmdb_id: series.tmdb_id,
+      title,
+      year,
+      description: series.description,
+      rating: series.rating,
+      genres: series.genres,
+      posterUrl: series.image,
+    };
+  });
+}
+
+export async function saveSeries(
+  notionTitle: string,
+  seriesList: SeriesDetails[],
+) {
+  if (seriesList.length === 0) return;
+
+  const records = seriesList.map((series) => ({
+    tmdb_id: series.tmdb_id,
+    title: `${series.title} (${series.year})`,
+    notion_title: notionTitle,
+    description: series.description,
+    rating: series.rating,
+    genres: series.genres,
+    image: series.posterUrl,
+  }));
+
+  const { error } = await supabase.from("series").insert(records);
+
+  if (error) {
+    console.error("Error saving series to Supabase:", error);
   }
 }
 
@@ -129,5 +187,27 @@ export async function deleteGamesByNotionTitle(notionTitle: string) {
 
   if (error) {
     console.error("Error deleting games from Supabase:", error);
+  }
+}
+
+export async function deleteMoviesByNotionTitle(notionTitle: string) {
+  const { error } = await supabase
+    .from("movies")
+    .delete()
+    .eq("notion_title", notionTitle);
+
+  if (error) {
+    console.error("Error deleting movies from Supabase:", error);
+  }
+}
+
+export async function deleteSeriesByNotionTitle(notionTitle: string) {
+  const { error } = await supabase
+    .from("series")
+    .delete()
+    .eq("notion_title", notionTitle);
+
+  if (error) {
+    console.error("Error deleting series from Supabase:", error);
   }
 }

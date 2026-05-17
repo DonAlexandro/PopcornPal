@@ -47,9 +47,8 @@ export async function fetchMovieDetails(
   };
 
   // Try finding the movie with different language fallbacks
-  let movieIds = await trySearch("uk-UA");
-  movieIds ??= await trySearch("ru-RU");
-  movieIds ??= await trySearch("en-US");
+  let movieIds = await trySearch("en-US");
+  movieIds ??= await trySearch("uk-UA");
 
   if (!movieIds || movieIds.length === 0) {
     return []; // Movie not found
@@ -63,7 +62,7 @@ export async function fetchMovieDetails(
   ): Promise<MovieDetails | null> => {
     // Fetch full details
     const detailsUrl = new URL(`${baseUrl}/movie/${movieId}`);
-    detailsUrl.searchParams.append("language", "uk-UA"); // Prefer Ukrainian for details
+    detailsUrl.searchParams.append("language", "en-US");
 
     const detailsResponse = await fetch(detailsUrl.toString(), {
       headers: {
@@ -93,7 +92,7 @@ export async function fetchMovieDetails(
       tmdb_id: movieId,
       title: details.title,
       year,
-      description: details.overview || "Опис відсутній.",
+      description: details.overview || "No description available.",
       rating: details.vote_average || 0,
       genres,
       country,
@@ -132,9 +131,8 @@ export async function fetchSeriesDetails(
       : null;
   };
 
-  let seriesIds = await trySearch("uk-UA");
-  seriesIds ??= await trySearch("ru-RU");
-  seriesIds ??= await trySearch("en-US");
+  let seriesIds = await trySearch("en-US");
+  seriesIds ??= await trySearch("uk-UA");
 
   if (!seriesIds || seriesIds.length === 0) {
     return [];
@@ -146,7 +144,7 @@ export async function fetchSeriesDetails(
     seriesId: number,
   ): Promise<SeriesDetails | null> => {
     const detailsUrl = new URL(`${baseUrl}/tv/${seriesId}`);
-    detailsUrl.searchParams.append("language", "uk-UA");
+    detailsUrl.searchParams.append("language", "en-US");
 
     const detailsResponse = await fetch(detailsUrl.toString(), {
       headers: {
@@ -171,7 +169,7 @@ export async function fetchSeriesDetails(
       tmdb_id: seriesId,
       title: details.name,
       year,
-      description: details.overview || "Опис відсутній.",
+      description: details.overview || "No description available.",
       rating: details.vote_average || 0,
       genres,
       posterUrl,

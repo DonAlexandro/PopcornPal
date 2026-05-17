@@ -1,4 +1,5 @@
 ---
+name: "do"
 description: "Apply pre-configured skills and instructions, then execute any task. Use: /do <instructions>"
 agent: "agent"
 argument-hint: "Optional pre-task instructions before Copilot acts"

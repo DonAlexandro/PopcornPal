@@ -25,16 +25,16 @@ import {
 export const mainKeyboard = {
   reply_markup: {
     keyboard: [
-      [{ text: "Знайти кіно" }],
-      [{ text: "Знайти серіал" }],
-      [{ text: "Знайти гру" }],
+      [{ text: "Find a Movie" }],
+      [{ text: "Find a Series" }],
+      [{ text: "Find a Game" }],
     ],
     resize_keyboard: true,
     persistent: true,
   },
 };
 
-const backButtonText = "<< назад";
+const backButtonText = "<< back";
 
 const gamePlatformKeyboard = {
   reply_markup: {
@@ -64,7 +64,7 @@ export async function handleStartCommand(
 ) {
   await messenger.sendMessage(
     chatId,
-    'Привіт! Натисни кнопку "Знайти кіно", "Знайти серіал" або "Знайти гру", щоб отримати випадкову рекомендацію.',
+    'Hi! Press "Find a Movie", "Find a Series", or "Find a Game" to get a random recommendation.',
     mainKeyboard,
   );
 }
@@ -77,7 +77,7 @@ export async function handleTextMessage(
 ) {
   const userState = await sessionStore.get(chatId);
 
-  if (text === "Знайти гру") {
+  if (text === "Find a Game") {
     await sessionStore.delete(chatId);
     await sessionStore.set(chatId, {
       step: "AWAITING_GAME_PLATFORM",
@@ -85,19 +85,19 @@ export async function handleTextMessage(
 
     await messenger.sendMessage(
       chatId,
-      "Обери платформу:",
+      "Choose a platform:",
       gamePlatformKeyboard,
     );
     return;
   }
 
-  if (text === "Знайти кіно") {
+  if (text === "Find a Movie") {
     await sessionStore.delete(chatId);
     await handleFindMovie(messenger, chatId, sessionStore);
     return;
   }
 
-  if (text === "Знайти серіал") {
+  if (text === "Find a Series") {
     await sessionStore.delete(chatId);
     await handleFindSeries(messenger, chatId, sessionStore);
     return;
@@ -206,7 +206,7 @@ async function handleWatchedMovieCallback(
     const title = await getNotionPageTitleById(pageId);
     if (!title) {
       await messenger.answerCallbackQuery(callbackQueryId, {
-        text: "Не вдалося знайти фільм. Знайдіть його знову.",
+        text: "Movie not found. Find it again.",
         show_alert: true,
       });
       return;
@@ -220,7 +220,7 @@ async function handleWatchedMovieCallback(
       (!seriesDetails || seriesDetails.length === 0)
     ) {
       await messenger.answerCallbackQuery(callbackQueryId, {
-        text: "Не вдалося знайти фільм. Знайдіть його знову.",
+        text: "Movie not found. Find it again.",
         show_alert: true,
       });
       return;
@@ -241,7 +241,7 @@ async function handleWatchedMovieCallback(
     genres,
   });
 
-  await messenger.sendMessage(chatId, "Введи свою оцінку:", {
+  await messenger.sendMessage(chatId, "Enter your rating:", {
     reply_markup: {
       force_reply: true,
     },
@@ -273,7 +273,7 @@ async function handleWatchedGameCallback(
     const title = await getNotionPageTitleById(pageId);
     if (!title) {
       await messenger.answerCallbackQuery(callbackQueryId, {
-        text: "Не вдалося знайти гру. Знайдіть її знову.",
+        text: "Game not found. Find it again.",
         show_alert: true,
       });
       return;
@@ -282,7 +282,7 @@ async function handleWatchedGameCallback(
     const gameDetails = await getGameByNotionTitle(title);
     if (!gameDetails) {
       await messenger.answerCallbackQuery(callbackQueryId, {
-        text: "Не вдалося знайти гру. Знайдіть її знову.",
+        text: "Game not found. Find it again.",
         show_alert: true,
       });
       return;
@@ -299,7 +299,7 @@ async function handleWatchedGameCallback(
     genres,
   });
 
-  await messenger.sendMessage(chatId, "Постав свою оцінку грі від 1 до 5:", {
+  await messenger.sendMessage(chatId, "Rate the game from 1 to 5:", {
     reply_markup: {
       force_reply: true,
     },
@@ -317,17 +317,14 @@ async function handleAwaitingRating(
   const rating = Number(text.trim());
 
   if (Number.isNaN(rating) || rating < 1 || rating > 5) {
-    await messenger.sendMessage(
-      chatId,
-      "Оцінка не може бути нижчою за 1 чи більшою за 5",
-    );
+    await messenger.sendMessage(chatId, "Rating must be between 1 and 5");
     return;
   }
 
   if (!userState.pageId) {
     await messenger.sendMessage(
       chatId,
-      "Дані застаріли. Знайдіть фільм знову.",
+      "Data expired. Find a movie again.",
       mainKeyboard,
     );
     await sessionStore.delete(chatId);
@@ -335,20 +332,17 @@ async function handleAwaitingRating(
   }
 
   try {
-    await messenger.sendMessage(chatId, "Оновлюю Notion...");
+    await messenger.sendMessage(chatId, "Updating Notion...");
     await updateMovieInNotion(userState.pageId, rating, userState.genres || []);
     if (userState.notionTitle) {
       await deleteMoviesByNotionTitle(userState.notionTitle);
       await deleteSeriesByNotionTitle(userState.notionTitle);
     }
-    await messenger.sendMessage(chatId, "✅ Сторінку оновлено в Notion!");
+    await messenger.sendMessage(chatId, "✅ Page updated in Notion!");
     await sessionStore.delete(chatId);
   } catch (error) {
     console.error("Error updating Notion:", error);
-    await messenger.sendMessage(
-      chatId,
-      "Щось пішло не так при оновленні сторінки в Notion",
-    );
+    await messenger.sendMessage(chatId, "Something went wrong updating Notion");
     await sessionStore.delete(chatId);
   }
 }
@@ -361,14 +355,14 @@ async function handleAwaitingGamePlatform(
 ) {
   if (isBackButton(text)) {
     await sessionStore.delete(chatId);
-    await messenger.sendMessage(chatId, "Обери дію:", mainKeyboard);
+    await messenger.sendMessage(chatId, "Choose an action:", mainKeyboard);
     return;
   }
 
   if (text !== "Playstation" && text !== "PC") {
     await messenger.sendMessage(
       chatId,
-      "Обери платформу:",
+      "Choose a platform:",
       gamePlatformKeyboard,
     );
     return;
@@ -379,7 +373,7 @@ async function handleAwaitingGamePlatform(
     platform: text,
   });
 
-  await messenger.sendMessage(chatId, "Обери тип гри:", gameTypeKeyboard);
+  await messenger.sendMessage(chatId, "Choose game type:", gameTypeKeyboard);
 }
 
 async function handleAwaitingGameType(
@@ -395,7 +389,7 @@ async function handleAwaitingGameType(
     });
     await messenger.sendMessage(
       chatId,
-      "Обери платформу:",
+      "Choose a platform:",
       gamePlatformKeyboard,
     );
     return;
@@ -407,7 +401,7 @@ async function handleAwaitingGameType(
     });
     await messenger.sendMessage(
       chatId,
-      "Обери платформу:",
+      "Choose a platform:",
       gamePlatformKeyboard,
     );
     return;
@@ -419,14 +413,14 @@ async function handleAwaitingGameType(
     });
     await messenger.sendMessage(
       chatId,
-      "Обери платформу:",
+      "Choose a platform:",
       gamePlatformKeyboard,
     );
     return;
   }
 
   if (text !== "📖 Story-driven" && text !== "🎮 Gameplay-driven") {
-    await messenger.sendMessage(chatId, "Обери тип гри:", gameTypeKeyboard);
+    await messenger.sendMessage(chatId, "Choose game type:", gameTypeKeyboard);
     return;
   }
 
@@ -449,17 +443,14 @@ async function handleAwaitingGameRating(
   const rating = Number(text.trim());
 
   if (Number.isNaN(rating) || rating < 1 || rating > 5) {
-    await messenger.sendMessage(
-      chatId,
-      "Оцінка має бути не менша 1 і не більша 5",
-    );
+    await messenger.sendMessage(chatId, "Rating must be between 1 and 5");
     return;
   }
 
   if (!userState.pageId || !userState.notionTitle) {
     await messenger.sendMessage(
       chatId,
-      "Дані застаріли. Знайдіть гру знову.",
+      "Data expired. Find a game again.",
       mainKeyboard,
     );
     await sessionStore.delete(chatId);
@@ -467,12 +458,12 @@ async function handleAwaitingGameRating(
   }
 
   try {
-    await messenger.sendMessage(chatId, "Оновлюю Notion...");
+    await messenger.sendMessage(chatId, "Updating Notion...");
     await updateGameInNotion(userState.pageId, rating, userState.genres || []);
     await deleteGamesByNotionTitle(userState.notionTitle);
     await messenger.sendMessage(
       chatId,
-      "✅ Гру оновлено в Notion!",
+      "✅ Game updated in Notion!",
       mainKeyboard,
     );
     await sessionStore.delete(chatId);
@@ -480,7 +471,7 @@ async function handleAwaitingGameRating(
     console.error("Error updating game in Notion:", error);
     await messenger.sendMessage(
       chatId,
-      "Щось пішло не так при оновленні сторінки гри в Notion",
+      "Something went wrong updating the game in Notion",
       mainKeyboard,
     );
     await sessionStore.delete(chatId);
@@ -500,7 +491,7 @@ async function handleViewingGame(
     });
     await messenger.sendMessage(
       chatId,
-      "Обери платформу:",
+      "Choose a platform:",
       gamePlatformKeyboard,
     );
     return;
@@ -531,14 +522,14 @@ async function handleBackButtonPress(
     });
     await messenger.sendMessage(
       chatId,
-      "Обери платформу:",
+      "Choose a platform:",
       gamePlatformKeyboard,
     );
     return;
   }
 
   await sessionStore.delete(chatId);
-  await messenger.sendMessage(chatId, "Обери дію:", mainKeyboard);
+  await messenger.sendMessage(chatId, "Choose an action:", mainKeyboard);
 }
 
 async function handleFindMovie(
@@ -549,7 +540,7 @@ async function handleFindMovie(
   try {
     await messenger.sendMessage(
       chatId,
-      "Шукаю фільм у Notion...",
+      "Looking for a movie in Notion...",
       mainKeyboard,
     );
 
@@ -557,7 +548,7 @@ async function handleFindMovie(
 
     await messenger.sendMessage(
       chatId,
-      `Знайдено фільм: "${notionMovie.title}". Шукаю деталі на TMDB...`,
+      `Found movie: "${notionMovie.title}". Fetching details from TMDB...`,
     );
 
     let moviesDetails = await getMoviesByNotionTitle(notionMovie.title);
@@ -577,7 +568,7 @@ async function handleFindMovie(
     if (!moviesDetails || moviesDetails.length === 0) {
       await messenger.sendMessage(
         chatId,
-        `Не вдалося знайти деталі для фільму "${notionMovie.title}" на TMDB. 😢`,
+        `Could not find details for "${notionMovie.title}" on TMDB. 😢`,
       );
       return;
     }
@@ -597,7 +588,7 @@ async function handleFindMovie(
 
       const caption = `<b>${movieDetails.title} (${movieDetails.year})</b>\n\n${movieDetails.description}\n\n⭐️ Rating: ${movieDetails.rating.toFixed(1)}\n\n🎬 Genres: ${movieDetails.genres.join(", ")}\n\n📍 Country: ${movieDetails.country}`;
       const googleQuery = encodeURIComponent(
-        `${movieDetails.title} дивитися онлайн`,
+        `${movieDetails.title} watch online`,
       );
 
       const inlineKeyboard = {
@@ -605,17 +596,17 @@ async function handleFindMovie(
           inline_keyboard: [
             [
               {
-                text: "ℹ️ Детальніше",
+                text: "ℹ️ More info",
                 url: `https://www.themoviedb.org/movie/${movieDetails.tmdb_id}`,
               },
             ],
             [
               {
-                text: "✅ Переглянув",
+                text: "✅ Watched",
                 callback_data: `watched_${notionMovie.id}_${index}`,
               },
               {
-                text: "🍿 Дивитися",
+                text: "🍿 Watch",
                 url: `https://www.google.com/search?q=${googleQuery}`,
               },
             ],
@@ -637,10 +628,10 @@ async function handleFindMovie(
       }
     }
   } catch (error) {
-    console.error("Error handling Знайти кіно:", error);
+    console.error("Error handling Find a Movie:", error);
     await messenger.sendMessage(
       chatId,
-      "Щось пішло не так при отриманні даних з Notion",
+      "Something went wrong fetching data from Notion",
     );
   }
 }
@@ -653,7 +644,7 @@ async function handleFindSeries(
   try {
     await messenger.sendMessage(
       chatId,
-      "Пошук якогось капітального серіальчика почався…",
+      "Looking for a series in Notion...",
       mainKeyboard,
     );
 
@@ -661,7 +652,7 @@ async function handleFindSeries(
 
     await messenger.sendMessage(
       chatId,
-      `Знайшов у Notion: "${notionSeries.title}". Тягну деталі з TMDB...`,
+      `Found series: "${notionSeries.title}". Fetching details from TMDB...`,
     );
 
     let seriesDetails = await getSeriesByNotionTitle(notionSeries.title);
@@ -681,7 +672,7 @@ async function handleFindSeries(
     if (!seriesDetails || seriesDetails.length === 0) {
       await messenger.sendMessage(
         chatId,
-        `Не вдалося знайти деталі для серіалу "${notionSeries.title}" на TMDB. 😢`,
+        `Could not find details for "${notionSeries.title}" on TMDB. 😢`,
       );
       return;
     }
@@ -699,26 +690,26 @@ async function handleFindSeries(
         continue;
       }
 
-      const caption = `<b>${series.title} (${series.year})</b>\n\n${series.description}\n\n⭐️ Рейтинг: ${series.rating.toFixed(1)}\n\n🎬 Жанр: ${series.genres.join(", ") || "N/A"}`;
+      const caption = `<b>${series.title} (${series.year})</b>\n\n${series.description}\n\n⭐️ Rating: ${series.rating.toFixed(1)}\n\n🎬 Genres: ${series.genres.join(", ") || "N/A"}`;
 
-      const googleQuery = encodeURIComponent(`${series.title} дивитися онлайн`);
+      const googleQuery = encodeURIComponent(`${series.title} watch online`);
 
       const inlineKeyboard = {
         reply_markup: {
           inline_keyboard: [
             [
               {
-                text: "ℹ️ Детальніше",
+                text: "ℹ️ More info",
                 url: `https://www.themoviedb.org/tv/${series.tmdb_id}`,
               },
             ],
             [
               {
-                text: "✅ Переглянув",
+                text: "✅ Watched",
                 callback_data: `watched_${notionSeries.id}_${index}`,
               },
               {
-                text: "🍿 Дивитися",
+                text: "🍿 Watch",
                 url: `https://www.google.com/search?q=${googleQuery}`,
               },
             ],
@@ -740,10 +731,10 @@ async function handleFindSeries(
       }
     }
   } catch (error) {
-    console.error("Error handling Знайти серіал:", error);
+    console.error("Error handling Find a Series:", error);
     await messenger.sendMessage(
       chatId,
-      "Щось пішло не так при отриманні даних серіалу",
+      "Something went wrong fetching series data",
     );
   }
 }
@@ -756,7 +747,7 @@ async function handleFindGame(
   styleChoice: "story" | "gameplay",
 ) {
   try {
-    await messenger.sendMessage(chatId, "Шукаю гру в Notion…");
+    await messenger.sendMessage(chatId, "Looking for a game in Notion...");
 
     const notionGame = await getRandomGameFromNotion(
       platformChoice,
@@ -765,7 +756,7 @@ async function handleFindGame(
 
     await messenger.sendMessage(
       chatId,
-      `Знайдено гру: "${notionGame.title}". Шукаю деталі на IGDB...`,
+      `Found game: "${notionGame.title}". Fetching details from IGDB...`,
     );
 
     let gameDetails = await getGameByNotionTitle(notionGame.title);
@@ -790,7 +781,7 @@ async function handleFindGame(
       await sessionStore.delete(chatId);
       await messenger.sendMessage(
         chatId,
-        `Не вдалося знайти деталі для гри "${notionGame.title}" в IGDB. 😢`,
+        `Could not find details for "${notionGame.title}" on IGDB. 😢`,
         mainKeyboard,
       );
       return;
@@ -812,11 +803,11 @@ async function handleFindGame(
         inline_keyboard: [
           [
             {
-              text: "✅ Пройшов",
+              text: "✅ Played",
               callback_data: `played_game_${notionGame.id}`,
             },
             {
-              text: "ℹ️ Детальніше",
+              text: "ℹ️ More info",
               url: gameDetails.url,
             },
           ],
@@ -837,11 +828,11 @@ async function handleFindGame(
       });
     }
   } catch (error) {
-    console.error("Error handling Знайти гру:", error);
+    console.error("Error handling Find a Game:", error);
     await sessionStore.delete(chatId);
     await messenger.sendMessage(
       chatId,
-      "Щось пішло не так при отриманні даних гри",
+      "Something went wrong fetching game data",
       mainKeyboard,
     );
   }
@@ -851,7 +842,7 @@ function trimToSentenceCount(text: string, maxSentences: number): string {
   const normalizedText = text.replaceAll(/\s+/g, " ").trim();
 
   if (!normalizedText) {
-    return "Опис відсутній.";
+    return "No description available.";
   }
 
   const sentenceMatches = normalizedText.match(/(?:[^.!?]+[.!?]+|[^.!?]+$)/g);

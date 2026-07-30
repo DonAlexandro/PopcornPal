@@ -1,0 +1,841 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>
+      PopcornPal Change Explainer: Explicit Gameplay-driven Filtering
+    </title>
+    <style>
+      :root {
+        --bg: #f7f9fc;
+        --card: #ffffff;
+        --ink: #132238;
+        --muted: #48617d;
+        --line: #d9e2ec;
+        --accent: #0b7285;
+        --accent-2: #f08c00;
+        --ok: #2b8a3e;
+        --bad: #c92a2a;
+        --focus: #1c7ed6;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          ui-sans-serif,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Helvetica,
+          Arial,
+          sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 10% -10%, #d7f5ff 0%, transparent 35%),
+          radial-gradient(circle at 90% 0%, #fff3bf 0%, transparent 28%),
+          var(--bg);
+        line-height: 1.6;
+      }
+
+      .wrap {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 1.2rem;
+      }
+
+      .hero {
+        background: linear-gradient(140deg, #e3fafc, #fff4e6);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 1.2rem;
+        box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.25;
+      }
+      h1 {
+        margin: 0 0 0.6rem;
+        font-size: clamp(1.4rem, 2.7vw, 2rem);
+      }
+      h2 {
+        margin-top: 2rem;
+        font-size: clamp(1.25rem, 2.3vw, 1.6rem);
+      }
+      h3 {
+        margin-top: 1.2rem;
+        font-size: 1.1rem;
+      }
+
+      p,
+      li {
+        color: var(--ink);
+      }
+      .muted {
+        color: var(--muted);
+      }
+
+      .toc {
+        margin-top: 1rem;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 0.9rem 1rem;
+      }
+
+      .toc a {
+        color: #0a4e66;
+        text-decoration-thickness: 2px;
+        text-underline-offset: 2px;
+      }
+
+      .section {
+        margin-top: 1rem;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1rem;
+      }
+
+      .callout {
+        border-left: 4px solid var(--accent);
+        background: #effcff;
+        padding: 0.7rem 0.8rem;
+        border-radius: 8px;
+        margin: 0.8rem 0;
+      }
+
+      .callout.warn {
+        border-left-color: var(--accent-2);
+        background: #fff9db;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.75rem;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 0.75rem;
+        background: #fff;
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.65rem;
+        margin: 1rem 0;
+      }
+
+      .flow-step {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 0.7rem;
+        background: #fcfdff;
+        position: relative;
+      }
+
+      .flow-step:not(:last-child)::after {
+        content: "↓";
+        position: absolute;
+        left: 50%;
+        bottom: -1rem;
+        transform: translateX(-50%);
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .before-after {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.8rem;
+        margin: 1rem 0;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        background: #fff;
+      }
+
+      .panel h3 {
+        margin: 0;
+        padding: 0.6rem 0.8rem;
+        background: #edf2ff;
+        border-bottom: 1px solid var(--line);
+        font-size: 1rem;
+      }
+
+      .panel .body {
+        padding: 0.8rem;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0.6rem;
+        font-size: 0.95rem;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--line);
+        text-align: left;
+        padding: 0.45rem 0.5rem;
+        vertical-align: top;
+      }
+
+      th {
+        background: #eef7ff;
+      }
+
+      pre {
+        background: #0f172a;
+        color: #e2e8f0;
+        border-radius: 10px;
+        padding: 0.8rem;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        border: 1px solid #1e293b;
+      }
+
+      code {
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", monospace;
+        font-size: 0.92rem;
+      }
+
+      .quiz-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        padding: 0.9rem;
+        margin-bottom: 0.9rem;
+      }
+
+      .quiz-options {
+        display: grid;
+        gap: 0.45rem;
+        margin-top: 0.65rem;
+      }
+
+      .quiz-option {
+        width: 100%;
+        text-align: left;
+        padding: 0.55rem 0.6rem;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        color: var(--ink);
+        cursor: pointer;
+        transition:
+          transform 120ms ease,
+          border-color 120ms ease,
+          background 120ms ease;
+      }
+
+      .quiz-option:hover {
+        transform: translateY(-1px);
+        border-color: #94a3b8;
+      }
+      .quiz-option:focus-visible {
+        outline: 3px solid var(--focus);
+        outline-offset: 2px;
+      }
+
+      .quiz-option.selected {
+        border-width: 2px;
+      }
+      .quiz-option.correct {
+        border-color: var(--ok);
+        background: #ebfbee;
+      }
+      .quiz-option.incorrect {
+        border-color: var(--bad);
+        background: #fff5f5;
+      }
+
+      .quiz-feedback {
+        margin-top: 0.6rem;
+        padding: 0.55rem 0.65rem;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: #f8fafc;
+        display: none;
+      }
+
+      .quiz-feedback.show {
+        display: block;
+      }
+
+      .small {
+        font-size: 0.92rem;
+      }
+
+      @media (min-width: 780px) {
+        .before-after {
+          grid-template-columns: 1fr 1fr;
+        }
+        .flow {
+          grid-template-columns: 1fr 1fr;
+        }
+        .flow-step:nth-child(odd)::after {
+          content: "→";
+          top: 50%;
+          right: -0.9rem;
+          left: auto;
+          bottom: auto;
+          transform: translateY(-50%);
+        }
+        .flow-step:nth-child(even)::after {
+          content: "";
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <section class="hero">
+        <h1>Explicit Gameplay-driven Filter in Game Picker</h1>
+        <p class="muted">
+          Summary: the game selection logic now filters gameplay picks by the
+          Notion property Gameplay-driven = true, instead of inferring gameplay
+          from Story-driven = false. This lets a game be both story and
+          gameplay, and naturally skips games where both flags are false.
+        </p>
+        <div class="callout small">
+          <strong>Assumption used for this explainer:</strong> the target change
+          is the latest diff in src/services/notion.ts where style filtering for
+          game fetch was changed.
+        </div>
+        <nav class="toc" aria-label="Table of contents">
+          <strong>Table of contents</strong>
+          <ol>
+            <li><a href="#background">Background</a></li>
+            <li><a href="#intuition">Intuition</a></li>
+            <li><a href="#code">Code</a></li>
+            <li><a href="#quiz">Quiz</a></li>
+          </ol>
+        </nav>
+      </section>
+
+      <section id="background" class="section">
+        <h2>1. Background</h2>
+        <p>
+          <strong>Mental model:</strong> the bot asks the user for platform and
+          game style, then queries Notion for one matching game, enriches it
+          with IGDB details, and sends a recommendation.
+        </p>
+
+        <div class="cards" aria-label="System boundary cards">
+          <article class="card">
+            <h3>Telegram handlers</h3>
+            <p class="small">
+              Collects user choice and maps button text to style values story or
+              gameplay.
+            </p>
+            <p class="small">
+              References: src/bot/handlers.ts lines 422-433 and 742-755.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Notion query layer</h3>
+            <p class="small">
+              Builds filters for status, platform, and style; returns one random
+              page.
+            </p>
+            <p class="small">
+              References: src/services/notion.ts lines 104-190.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Data semantics</h3>
+            <p class="small">
+              Story-driven and Gameplay-driven are two independent checkboxes,
+              not strict opposites.
+            </p>
+            <p class="small">Consequence: a game can have both true.</p>
+          </article>
+        </div>
+
+        <div
+          class="flow"
+          role="group"
+          aria-label="Request flow from user to Notion and back"
+        >
+          <div class="flow-step">
+            <strong>Step A</strong><br />
+            User presses Story-driven or Gameplay-driven in Telegram.
+          </div>
+          <div class="flow-step">
+            <strong>Step B</strong><br />
+            Handler maps button text to styleChoice and calls
+            getRandomGameFromNotion(platform, style).
+          </div>
+          <div class="flow-step">
+            <strong>Step C</strong><br />
+            Notion query applies three constraints: style filter, status filter,
+            platform filter.
+          </div>
+          <div class="flow-step">
+            <strong>Step D</strong><br />
+            One random page is sampled and returned; bot fetches IGDB details
+            and responds.
+          </div>
+        </div>
+
+        <div class="callout warn small">
+          <strong>Prior behavior issue:</strong> gameplay picks were effectively
+          all non-story games, which accidentally excluded games that are both
+          story and gameplay, and included games where both flags were false.
+        </div>
+      </section>
+
+      <section id="intuition" class="section">
+        <h2>2. Intuition</h2>
+        <p>
+          The fix is simple: treat each checkbox as its own meaning. For a
+          gameplay request, demand Gameplay-driven = true. For a story request,
+          demand Story-driven = true.
+        </p>
+
+        <div
+          class="before-after"
+          aria-label="Before and after behavior comparison"
+        >
+          <article class="panel">
+            <h3>Before</h3>
+            <div class="body">
+              <p class="small">
+                Filter logic for style was tied only to Story-driven:
+              </p>
+              <pre><code>story request    =&gt; Story-driven = true
+gameplay request =&gt; Story-driven = false</code></pre>
+              <p class="small">Gameplay became a leftover bucket.</p>
+            </div>
+          </article>
+
+          <article class="panel">
+            <h3>After</h3>
+            <div class="body">
+              <p class="small">
+                Filter logic uses explicit property per style:
+              </p>
+              <pre><code>story request    =&gt; Story-driven = true
+gameplay request =&gt; Gameplay-driven = true</code></pre>
+              <p class="small">
+                Now both-true games are valid for both styles; both-false games
+                match neither.
+              </p>
+            </div>
+          </article>
+        </div>
+
+        <h3>Toy data examples</h3>
+        <table aria-label="Toy examples of story and gameplay flags">
+          <thead>
+            <tr>
+              <th>Game</th>
+              <th>Story-driven</th>
+              <th>Gameplay-driven</th>
+              <th>Story request</th>
+              <th>Gameplay request</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>A</td>
+              <td>true</td>
+              <td>false</td>
+              <td>Included</td>
+              <td>Excluded</td>
+            </tr>
+            <tr>
+              <td>B</td>
+              <td>false</td>
+              <td>true</td>
+              <td>Excluded</td>
+              <td>Included</td>
+            </tr>
+            <tr>
+              <td>C</td>
+              <td>true</td>
+              <td>true</td>
+              <td>Included</td>
+              <td>Included</td>
+            </tr>
+            <tr>
+              <td>D</td>
+              <td>false</td>
+              <td>false</td>
+              <td>Excluded</td>
+              <td>Excluded</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="code" class="section">
+        <h2>3. Code</h2>
+        <p>
+          This walkthrough is grouped by execution flow rather than by raw file
+          order.
+        </p>
+
+        <h3>Group 1: User input chooses style</h3>
+        <p>
+          Telegram buttons are Story-driven and Gameplay-driven. The handler
+          maps them to internal values story or gameplay, then calls the fetch
+          function.
+        </p>
+        <pre><code>// src/bot/handlers.ts (422-433)
+if (text !== "📖 Story-driven" &amp;&amp; text !== "🎮 Gameplay-driven") {
+  await messenger.sendMessage(chatId, "Choose game type:", gameTypeKeyboard);
+  return;
+}
+
+await handleFindGame(
+  messenger,
+  chatId,
+  sessionStore,
+  userState.platform,
+  text === "📖 Story-driven" ? "story" : "gameplay",
+);</code></pre>
+
+        <h3>Group 2: Style filter is now explicit</h3>
+        <p>The main change is creation of styleFilter in the Notion service.</p>
+        <pre><code>// src/services/notion.ts (136-149)
+const styleFilter =
+  styleChoice === "story"
+    ? {
+        property: "Story-driven",
+        checkbox: { equals: true },
+      }
+    : {
+        property: "Gameplay-driven",
+        checkbox: { equals: true },
+      };</code></pre>
+
+        <div class="callout small">
+          <strong>Invariant:</strong> style choice always maps to a positive
+          checkbox test on the corresponding property.
+        </div>
+
+        <h3>Group 3: Query combines style with existing constraints</h3>
+        <p>
+          Only style predicate changed. Status and platform behavior are
+          unchanged.
+        </p>
+        <pre><code>// src/services/notion.ts (151-175)
+filter: {
+  and: [
+    styleFilter,
+    {
+      or: [
+        { property: "Status", status: { equals: "Backlog" } },
+        { property: "Status", status: { equals: "Plan to play" } },
+      ],
+    },
+    platformFilter,
+  ],
+}</code></pre>
+
+        <h3>Group 4: Observable behavior after query</h3>
+        <p>
+          If no results match all constraints, code still throws No games found.
+          That user-visible behavior is unchanged; only matching set changed.
+        </p>
+        <pre><code>// src/services/notion.ts (178-182)
+const pages = response.results;
+if (pages.length === 0) {
+  throw new Error("No games found");
+}</code></pre>
+
+        <h3>Diff summary</h3>
+        <table aria-label="Conceptual diff summary">
+          <thead>
+            <tr>
+              <th>Area</th>
+              <th>Old behavior</th>
+              <th>New behavior</th>
+              <th>Consequence</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Gameplay filtering</td>
+              <td>Story-driven = false</td>
+              <td>Gameplay-driven = true</td>
+              <td>Both-true entries now eligible</td>
+            </tr>
+            <tr>
+              <td>Story filtering</td>
+              <td>Story-driven = true</td>
+              <td>Story-driven = true</td>
+              <td>No change</td>
+            </tr>
+            <tr>
+              <td>Both false</td>
+              <td>Included in gameplay</td>
+              <td>Excluded from both</td>
+              <td>Cleaner semantic matches</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p class="small muted">
+          Inspected files: src/services/notion.ts, src/bot/handlers.ts, and git
+          diff for src/services/notion.ts.
+        </p>
+      </section>
+
+      <section id="quiz" class="section">
+        <h2>4. Quiz</h2>
+        <p>
+          Five medium-difficulty checks. Pick one option per question to get
+          instant feedback.
+        </p>
+        <div id="quiz-root"></div>
+      </section>
+    </main>
+
+    <script>
+      (() => {
+        const quizData = [
+          {
+            question:
+              "Why was using Story-driven = false for gameplay requests incorrect?",
+            options: [
+              {
+                text: "It converts the Notion status filter into an OR and bypasses backlog rules.",
+                correct: false,
+              },
+              {
+                text:
+                  "It defines gameplay as " +
+                  String.fromCharCode(34) +
+                  "not story" +
+                  String.fromCharCode(34) +
+                  ", which can include both-false rows and exclude both-true rows.",
+                correct: true,
+              },
+              {
+                text: "It disables random sampling and always picks the first result page.",
+                correct: false,
+              },
+              {
+                text: "It changes platform matching from PS5 and PC to any platform.",
+                correct: false,
+              },
+            ],
+            explain:
+              "Gameplay and story are independent flags. Negating one flag does not reliably represent the other concept.",
+          },
+          {
+            question:
+              "With the new logic, what happens when a game has Story-driven=true and Gameplay-driven=true?",
+            options: [
+              {
+                text: "The game is valid for story requests and gameplay requests.",
+                correct: true,
+              },
+              {
+                text: "The game is dropped because dual-true is treated as inconsistent data.",
+                correct: false,
+              },
+              {
+                text: "The game appears only for gameplay, never for story.",
+                correct: false,
+              },
+              {
+                text: "The game appears only if status is Watched or Finished.",
+                correct: false,
+              },
+            ],
+            explain:
+              "Each style query now checks its own checkbox for true. Dual-true satisfies both filters.",
+          },
+          {
+            question:
+              "Which part of the Notion query changed semantically in this patch?",
+            options: [
+              {
+                text: "Status constraints were expanded to include Watched and Finished.",
+                correct: false,
+              },
+              {
+                text: "Platform constraints were replaced by a free-text platform search.",
+                correct: false,
+              },
+              {
+                text: "The style predicate changed from Story-driven-based inference to explicit per-style checks.",
+                correct: true,
+              },
+              {
+                text: "The database id source changed from environment variable to hard-coded constant.",
+                correct: false,
+              },
+            ],
+            explain:
+              "Only style filtering logic changed. Status, platform, random sampling, and result handling stayed the same.",
+          },
+          {
+            question:
+              "Under the new filter, what is the outcome for games where both Story-driven and Gameplay-driven are false?",
+            options: [
+              {
+                text: "Included for story and gameplay because both flags are neutral.",
+                correct: false,
+              },
+              {
+                text: "Included only for gameplay due to fallback behavior.",
+                correct: false,
+              },
+              {
+                text: "Included only for story if platform is PC.",
+                correct: false,
+              },
+              { text: "Excluded from both style requests.", correct: true },
+            ],
+            explain:
+              "Neither style filter matches a false checkbox for its own property.",
+          },
+          {
+            question:
+              "Where is style selected before calling the Notion fetch function?",
+            options: [
+              {
+                text: "In handlers, by mapping Telegram button text to story or gameplay before handleFindGame executes.",
+                correct: true,
+              },
+              {
+                text: "In db.ts, by reading cached genres and inferring style from rating.",
+                correct: false,
+              },
+              {
+                text: "In igdb.ts, by classifying game descriptions after fetch.",
+                correct: false,
+              },
+              {
+                text: "In runtime/env.ts, by checking SESSION_STORE_DRIVER value.",
+                correct: false,
+              },
+            ],
+            explain:
+              "The user input mapping occurs in handlers, then handleFindGame passes styleChoice into getRandomGameFromNotion.",
+          },
+        ];
+
+        const targetCorrectSlots = [2, 0, 3, 1, 2];
+
+        function seededRandom(seed) {
+          let x = seed >>> 0;
+          return () => {
+            x ^= x << 13;
+            x ^= x >>> 17;
+            x ^= x << 5;
+            return (x >>> 0) / 4294967296;
+          };
+        }
+
+        function shuffle(array, seed) {
+          const out = array.slice();
+          const rnd = seededRandom(seed);
+          for (let i = out.length - 1; i > 0; i--) {
+            const j = Math.floor(rnd() * (i + 1));
+            const tmp = out[i];
+            out[i] = out[j];
+            out[j] = tmp;
+          }
+          return out;
+        }
+
+        function forceCorrectPosition(options, slot) {
+          const out = options.slice();
+          const idx = out.findIndex((o) => o.correct);
+          if (idx < 0 || idx === slot) return out;
+          const tmp = out[slot];
+          out[slot] = out[idx];
+          out[idx] = tmp;
+          return out;
+        }
+
+        const root = document.getElementById("quiz-root");
+        const pageSeed = Number("20260731");
+
+        quizData.forEach((q, qIdx) => {
+          const card = document.createElement("article");
+          card.className = "quiz-card";
+
+          const h3 = document.createElement("h3");
+          h3.textContent = "Q" + (qIdx + 1) + ". " + q.question;
+          card.appendChild(h3);
+
+          const raw = shuffle(q.options, pageSeed + qIdx * 97 + 11);
+          const options = forceCorrectPosition(raw, targetCorrectSlots[qIdx]);
+
+          const optionsWrap = document.createElement("div");
+          optionsWrap.className = "quiz-options";
+
+          const feedback = document.createElement("div");
+          feedback.className = "quiz-feedback";
+          feedback.setAttribute("aria-live", "polite");
+
+          let locked = false;
+
+          options.forEach((opt) => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "quiz-option";
+            btn.textContent = opt.text;
+
+            btn.addEventListener("click", () => {
+              if (locked) return;
+              locked = true;
+
+              const all = optionsWrap.querySelectorAll("button.quiz-option");
+              all.forEach((node) => {
+                node.disabled = true;
+              });
+
+              btn.classList.add("selected");
+
+              if (opt.correct) {
+                btn.classList.add("correct");
+                feedback.innerHTML = "<strong>Correct.</strong> " + q.explain;
+              } else {
+                btn.classList.add("incorrect");
+                feedback.innerHTML = "<strong>Not quite.</strong> " + q.explain;
+                all.forEach((node, i) => {
+                  if (options[i].correct) {
+                    node.classList.add("correct");
+                  }
+                });
+              }
+
+              feedback.classList.add("show");
+            });
+
+            optionsWrap.appendChild(btn);
+          });
+
+          card.appendChild(optionsWrap);
+          card.appendChild(feedback);
+          root.appendChild(card);
+        });
+      })();
+    </script>
+  </body>
+</html>

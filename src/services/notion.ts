@@ -133,17 +133,27 @@ export async function getRandomGameFromNotion(
           ],
         };
 
+  const styleFilter =
+    styleChoice === "story"
+      ? {
+          property: "Story-driven",
+          checkbox: {
+            equals: true,
+          },
+        }
+      : {
+          property: "Gameplay-driven",
+          checkbox: {
+            equals: true,
+          },
+        };
+
   try {
     const response = await notion.databases.query({
       database_id: databaseId,
       filter: {
         and: [
-          {
-            property: "Story-driven",
-            checkbox: {
-              equals: styleChoice === "story",
-            },
-          },
+          styleFilter,
           {
             or: [
               {

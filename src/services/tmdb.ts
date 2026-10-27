@@ -1,4 +1,5 @@
 import { getEnvVar } from "../runtime/env.ts";
+import type { Language } from "../language.ts";
 
 export interface MovieDetails {
   tmdb_id: number;
@@ -23,9 +24,11 @@ export interface SeriesDetails {
 
 export async function fetchMovieDetails(
   title: string,
+  language: Language,
 ): Promise<MovieDetails[]> {
   const apiKey = getEnvVar("TMDB_API_KEY");
   const baseUrl = "https://api.themoviedb.org/3";
+  const locale = language === "uk" ? "uk-UA" : "en-US";
 
   const trySearch = async (language: string): Promise<number[] | null> => {
     const searchUrl = new URL(`${baseUrl}/search/movie`);
@@ -47,8 +50,12 @@ export async function fetchMovieDetails(
   };
 
   // Try finding the movie with different language fallbacks
-  let movieIds = await trySearch("en-US");
-  movieIds ??= await trySearch("uk-UA");
+  let detailsLocale = locale;
+  let movieIds = await trySearch(locale);
+  if ((!movieIds || movieIds.length === 0) && locale !== "en-US") {
+    movieIds = await trySearch("en-US");
+    detailsLocale = "en-US";
+  }
 
   if (!movieIds || movieIds.length === 0) {
     return []; // Movie not found
@@ -62,7 +69,7 @@ export async function fetchMovieDetails(
   ): Promise<MovieDetails | null> => {
     // Fetch full details
     const detailsUrl = new URL(`${baseUrl}/movie/${movieId}`);
-    detailsUrl.searchParams.append("language", "en-US");
+    detailsUrl.searchParams.append("language", detailsLocale);
 
     const detailsResponse = await fetch(detailsUrl.toString(), {
       headers: {
@@ -108,9 +115,11 @@ export async function fetchMovieDetails(
 
 export async function fetchSeriesDetails(
   title: string,
+  language: Language,
 ): Promise<SeriesDetails[]> {
   const apiKey = getEnvVar("TMDB_API_KEY");
   const baseUrl = "https://api.themoviedb.org/3";
+  const locale = language === "uk" ? "uk-UA" : "en-US";
 
   const trySearch = async (language: string): Promise<number[] | null> => {
     const searchUrl = new URL(`${baseUrl}/search/tv`);
@@ -131,8 +140,12 @@ export async function fetchSeriesDetails(
       : null;
   };
 
-  let seriesIds = await trySearch("en-US");
-  seriesIds ??= await trySearch("uk-UA");
+  let detailsLocale = locale;
+  let seriesIds = await trySearch(locale);
+  if ((!seriesIds || seriesIds.length === 0) && locale !== "en-US") {
+    seriesIds = await trySearch("en-US");
+    detailsLocale = "en-US";
+  }
 
   if (!seriesIds || seriesIds.length === 0) {
     return [];
@@ -144,7 +157,7 @@ export async function fetchSeriesDetails(
     seriesId: number,
   ): Promise<SeriesDetails | null> => {
     const detailsUrl = new URL(`${baseUrl}/tv/${seriesId}`);
-    detailsUrl.searchParams.append("language", "en-US");
+    detailsUrl.searchParams.append("language", detailsLocale);
 
     const detailsResponse = await fetch(detailsUrl.toString(), {
       headers: {

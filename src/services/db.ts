@@ -1,5 +1,6 @@
-import { createClient } from "npm:@supabase/supabase-js@2.103.3";
+import { createClient } from "@supabase/supabase-js";
 import { getEnvVar } from "../runtime/env.ts";
+import type { Language } from "../language.ts";
 import type { GameDetails } from "./igdb.ts";
 import type { MovieDetails, SeriesDetails } from "./tmdb.ts";
 
@@ -10,11 +11,13 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function getMoviesByNotionTitle(
   notionTitle: string,
+  language: Language,
 ): Promise<MovieDetails[] | null> {
   const { data, error } = await supabase
     .from("movies")
     .select("*")
-    .eq("notion_title", notionTitle);
+    .eq("notion_title", notionTitle)
+    .eq("language", language);
 
   if (error) {
     console.error("Error fetching movies from Supabase:", error);
@@ -45,13 +48,18 @@ export async function getMoviesByNotionTitle(
   });
 }
 
-export async function saveMovies(notionTitle: string, movies: MovieDetails[]) {
+export async function saveMovies(
+  notionTitle: string,
+  language: Language,
+  movies: MovieDetails[],
+) {
   if (movies.length === 0) return;
 
   const records = movies.map((m) => ({
     tmdb_id: m.tmdb_id,
     title: `${m.title} (${m.year})`,
     notion_title: notionTitle,
+    language,
     description: m.description,
     rating: m.rating,
     genres: m.genres,
@@ -68,11 +76,13 @@ export async function saveMovies(notionTitle: string, movies: MovieDetails[]) {
 
 export async function getSeriesByNotionTitle(
   notionTitle: string,
+  language: Language,
 ): Promise<SeriesDetails[] | null> {
   const { data, error } = await supabase
     .from("series")
     .select("*")
-    .eq("notion_title", notionTitle);
+    .eq("notion_title", notionTitle)
+    .eq("language", language);
 
   if (error) {
     console.error("Error fetching series from Supabase:", error);
@@ -103,6 +113,7 @@ export async function getSeriesByNotionTitle(
 
 export async function saveSeries(
   notionTitle: string,
+  language: Language,
   seriesList: SeriesDetails[],
 ) {
   if (seriesList.length === 0) return;
@@ -111,6 +122,7 @@ export async function saveSeries(
     tmdb_id: series.tmdb_id,
     title: `${series.title} (${series.year})`,
     notion_title: notionTitle,
+    language,
     description: series.description,
     rating: series.rating,
     genres: series.genres,
@@ -126,11 +138,13 @@ export async function saveSeries(
 
 export async function getGameByNotionTitle(
   notionTitle: string,
+  language: Language,
 ): Promise<GameDetails | null> {
   const { data, error } = await supabase
     .from("games")
     .select("*")
     .eq("notion_title", notionTitle)
+    .eq("language", language)
     .limit(1)
     .maybeSingle();
 
@@ -159,6 +173,7 @@ export async function getGameByNotionTitle(
 
 export async function saveGame(
   notionTitle: string,
+  language: Language,
   notionPlatform: string,
   game: GameDetails,
 ) {
@@ -166,6 +181,7 @@ export async function saveGame(
     igdb_id: game.igdb_id,
     title: `${game.title} (${game.year})`,
     notion_title: notionTitle,
+    language,
     description: game.description,
     rating: game.rating,
     genres: game.genres,

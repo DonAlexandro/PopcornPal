@@ -23,7 +23,12 @@ export function setupBot(token: string, sessionStore: SessionStore) {
   };
 
   bot.onText(/\/start/, (msg) => {
-    void handleStartCommand(messenger, msg.chat.id);
+    void handleStartCommand(
+      messenger,
+      msg.chat.id,
+      sessionStore,
+      msg.from?.language_code,
+    );
   });
 
   bot.on("message", async (msg) => {
@@ -32,7 +37,14 @@ export function setupBot(token: string, sessionStore: SessionStore) {
 
     if (!text) return;
 
-    await handleTextMessage(messenger, chatId, text, sessionStore);
+    await handleTextMessage(
+      messenger,
+      chatId,
+      text,
+      sessionStore,
+      msg.chat.type === "private",
+      msg.from?.language_code,
+    );
   });
 
   bot.on("callback_query", async (query) => {
@@ -45,6 +57,7 @@ export function setupBot(token: string, sessionStore: SessionStore) {
       chatId,
       query.data,
       sessionStore,
+      query.from?.language_code,
     );
   });
 

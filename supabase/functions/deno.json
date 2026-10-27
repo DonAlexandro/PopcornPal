@@ -1,5 +1,6 @@
 {
   "imports": {
+    "i18next": "npm:i18next@26.5.11",
     "@notionhq/client": "npm:@notionhq/client@2.2.15",
     "@supabase/supabase-js": "npm:@supabase/supabase-js@2.103.3"
   }

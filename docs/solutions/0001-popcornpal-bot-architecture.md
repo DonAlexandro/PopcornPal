@@ -23,7 +23,8 @@ After reading this document, you should understand the end-to-end request path, 
 Key constraints and trade-offs:
 
 - One codebase serves two runtimes: Deno (production webhook) and Node/Bun (local tooling/polling), so environment access and handler interfaces are runtime-agnostic.
-- Session storage is pluggable (`memory` or `supabase`), but cache storage always depends on Supabase because DB client creation is unconditional.
+- Session state and recommendation caches always use Supabase so chat workflows and language preferences survive restarts in every runtime.
+- Bot interface strings use i18next with English fallback; TMDB receives the chat locale and provider caches are locale-specific. IGDB content and user-authored Notion text remain as supplied because neither is automatically translated.
 - Recommendation freshness favors correctness over stale speed: after rating updates in Notion, related cache entries are deleted and re-fetched on next request.
 
 ## HOW
@@ -51,7 +52,7 @@ Critical invariants:
   - `src/bot/handlers.ts` manages commands, text, callbacks, state transitions, and message rendering.
 - Session state abstraction:
   - `src/bot/session-store.ts` defines typed steps.
-  - `src/bot/create-session-store.ts` selects `InMemorySessionStore` or `SupabaseSessionStore` by `SESSION_STORE_DRIVER`.
+  - `src/bot/session-store.supabase.ts` persists workflow state and language preferences in `public.bot_sessions`.
 - Content source and updates:
   - `src/services/notion.ts` queries random candidates and writes final ratings/status to Notion pages.
 - Enrichment services:
@@ -118,10 +119,10 @@ Behavioral notes:
 
 Supabase tables and purpose:
 
-- `public.bot_sessions`: optional persistent session state for `SESSION_STORE_DRIVER=supabase`.
-- `public.movies`: movie candidate cache keyed by `notion_title`.
-- `public.series`: series candidate cache keyed by `notion_title`.
-- `public.games`: game cache keyed by `notion_title`.
+- `public.bot_sessions`: persistent workflow state and per-chat language preference.
+- `public.movies`: movie candidate cache keyed by `notion_title` and language.
+- `public.series`: series candidate cache keyed by `notion_title` and language.
+- `public.games`: game cache keyed by `notion_title` and language.
 
 Migration sequence currently in repository:
 
@@ -151,7 +152,6 @@ Trade-offs accepted:
 
 - Duplicate external API calls can still happen under concurrent requests before cache fill; this is tolerated to keep logic simple.
 - Cache invalidation is coarse (`delete by notion_title`) but ensures stale enrichment data is removed after rating updates.
-- Session durability in `memory` mode is intentionally non-persistent for local simplicity.
 
 ### End: Practical Takeaways, Limits, and Next Actions
 

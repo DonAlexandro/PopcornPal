@@ -41,11 +41,13 @@ To run this bot locally, use the Supabase Edge Function webhook flow.
    - `IGDB_CLIENT_ID`
    - `IGDB_CLIENT_SECRET`
    - `SUPA_URL`
+   - `SUPA_SECRET_KEY`
 
    Notes:
-   - Keep `SESSION_STORE_DRIVER=memory` for the simplest local setup.
-   - `SUPA_SECRET_KEY` is only needed if you switch to `SESSION_STORE_DRIVER=supabase`.
+   - Bot sessions and caches always use Supabase, locally and in production.
    - `SUPA_FUNCTION_SECRET` must only use `A-Z`, `a-z`, `0-9`, `_`, and `-` because Telegram rejects other characters in `secret_token`.
+
+   The bot supports English and Ukrainian. Use **Settings** in a private chat to change the chat language; run `supabase db push` to apply the session-language and locale-aware cache migrations.
 
 4. **Start the local Supabase runtime**:
 

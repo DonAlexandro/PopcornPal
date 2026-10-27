@@ -91,5 +91,4 @@ If you later change `SUPA_FUNCTION_SECRET`, run the same command again with the 
 
 ## Notes
 
-- `SESSION_STORE_DRIVER` must be `supabase` in production.
-- `SUPA_SECRET_KEY` is used for persistent bot sessions plus movie and game cache data.
+- `SUPA_SECRET_KEY` is required for persistent bot sessions and recommendation caches.

@@ -1,5 +1,7 @@
 import type { SessionStore, UserSession } from "./session-store.ts";
+import type { Language } from "./session-store.ts";
 import type { BotMessenger } from "./messenger.ts";
+import { translate } from "../i18n.ts";
 import {
   getNotionPageTitleById,
   getRandomGameFromNotion,
@@ -11,9 +13,9 @@ import {
 import { fetchGameDetails } from "../services/igdb.ts";
 import { fetchMovieDetails, fetchSeriesDetails } from "../services/tmdb.ts";
 import {
+  deleteGamesByNotionTitle,
   deleteMoviesByNotionTitle,
   deleteSeriesByNotionTitle,
-  deleteGamesByNotionTitle,
   getGameByNotionTitle,
   getMoviesByNotionTitle,
   getSeriesByNotionTitle,
@@ -22,50 +24,128 @@ import {
   saveSeries,
 } from "../services/db.ts";
 
-export const mainKeyboard = {
-  reply_markup: {
-    keyboard: [
-      [{ text: "Find a Movie" }],
-      [{ text: "Find a Series" }],
-      [{ text: "Find a Game" }],
-    ],
-    resize_keyboard: true,
-    persistent: true,
-  },
-};
+function mainKeyboard(language: Language) {
+  return {
+    reply_markup: {
+      keyboard: [
+        [{ text: translate(language, "menu.movie") }],
+        [{ text: translate(language, "menu.series") }],
+        [{ text: translate(language, "menu.game") }],
+        [{ text: translate(language, "menu.settings") }],
+      ],
+      resize_keyboard: true,
+      persistent: true,
+    },
+  };
+}
 
-const backButtonText = "<< back";
+function settingsKeyboard(language: Language) {
+  return {
+    reply_markup: {
+      keyboard: [
+        [
+          { text: translate(language, "menu.english") },
+          { text: translate(language, "menu.ukrainian") },
+        ],
+        [{ text: translate(language, "menu.back") }],
+      ],
+      resize_keyboard: true,
+      persistent: true,
+    },
+  };
+}
 
-const gamePlatformKeyboard = {
-  reply_markup: {
-    keyboard: [
-      [{ text: "Playstation" }, { text: "PC" }],
-      [{ text: backButtonText }],
-    ],
-    resize_keyboard: true,
-    persistent: true,
-  },
-};
+function gamePlatformKeyboard(language: Language) {
+  return {
+    reply_markup: {
+      keyboard: [
+        [
+          { text: translate(language, "menu.playstation") },
+          { text: translate(language, "menu.pc") },
+        ],
+        [{ text: translate(language, "menu.back") }],
+      ],
+      resize_keyboard: true,
+      persistent: true,
+    },
+  };
+}
 
-const gameTypeKeyboard = {
-  reply_markup: {
-    keyboard: [
-      [{ text: "📖 Story-driven" }, { text: "🎮 Gameplay-driven" }],
-      [{ text: backButtonText }],
-    ],
-    resize_keyboard: true,
-    persistent: true,
-  },
-};
+function gameTypeKeyboard(language: Language) {
+  return {
+    reply_markup: {
+      keyboard: [
+        [
+          { text: translate(language, "menu.story") },
+          { text: translate(language, "menu.gameplay") },
+        ],
+        [{ text: translate(language, "menu.back") }],
+      ],
+      resize_keyboard: true,
+      persistent: true,
+    },
+  };
+}
+
+function getTelegramLanguage(languageCode?: string): Language {
+  return languageCode?.toLowerCase().startsWith("uk") ? "uk" : "en";
+}
+
+function sessionStoreWithLanguageFallback(
+  messenger: BotMessenger,
+  chatId: number,
+  sessionStore: SessionStore,
+  fallbackLanguage: Language,
+): SessionStore {
+  let languageResult: Promise<Language> | undefined;
+
+  return {
+    get: (id) => sessionStore.get(id),
+    set: (id, session) => sessionStore.set(id, session),
+    delete: (id) => sessionStore.delete(id),
+    getLanguage: (id) => {
+      languageResult ??= sessionStore.getLanguage(id).catch(async (error) => {
+        console.error(
+          "Could not load saved language; using Telegram language:",
+          error,
+        );
+        await messenger.sendMessage(
+          chatId,
+          translate(fallbackLanguage, "message.language_load_failed"),
+        );
+        return fallbackLanguage;
+      });
+      return languageResult;
+    },
+    setLanguage: async (id, language) => {
+      await sessionStore.setLanguage(id, language);
+      languageResult = Promise.resolve(language);
+    },
+  };
+}
 
 export async function handleStartCommand(
   messenger: BotMessenger,
   chatId: number,
+  sessionStore: SessionStore,
+  telegramLanguageCode?: string,
 ) {
+  sessionStore = sessionStoreWithLanguageFallback(
+    messenger,
+    chatId,
+    sessionStore,
+    getTelegramLanguage(telegramLanguageCode),
+  );
+  const language = await sessionStore.getLanguage(chatId);
   await messenger.sendMessage(
     chatId,
-    'Hi! Press "Find a Movie", "Find a Series", or "Find a Game" to get a random recommendation.',
-    mainKeyboard,
+    translate(language, "message.start", {
+      movie: translate(language, "menu.movie"),
+      series: translate(language, "menu.series"),
+      game: translate(language, "menu.game"),
+      settings: translate(language, "menu.settings"),
+    }),
+    mainKeyboard(language),
   );
 }
 
@@ -74,10 +154,78 @@ export async function handleTextMessage(
   chatId: number,
   text: string,
   sessionStore: SessionStore,
+  isPrivateChat = true,
+  telegramLanguageCode?: string,
 ) {
+  sessionStore = sessionStoreWithLanguageFallback(
+    messenger,
+    chatId,
+    sessionStore,
+    getTelegramLanguage(telegramLanguageCode),
+  );
   const userState = await sessionStore.get(chatId);
+  const language = await sessionStore.getLanguage(chatId);
 
-  if (text === "Find a Game") {
+  if (text === translate(language, "menu.settings")) {
+    if (!isPrivateChat) {
+      await messenger.sendMessage(
+        chatId,
+        translate(language, "message.settings_private_only"),
+        mainKeyboard(language),
+      );
+      return;
+    }
+
+    await sessionStore.set(chatId, { step: "AWAITING_LANGUAGE" });
+    await messenger.sendMessage(
+      chatId,
+      translate(language, "message.select_language"),
+      settingsKeyboard(language),
+    );
+    return;
+  }
+
+  if (userState?.step === "AWAITING_LANGUAGE") {
+    const selectedLanguage = text === translate(language, "menu.english")
+      ? "en"
+      : text === translate(language, "menu.ukrainian")
+      ? "uk"
+      : null;
+
+    if (selectedLanguage) {
+      try {
+        await sessionStore.setLanguage(chatId, selectedLanguage);
+      } catch {
+        await messenger.sendMessage(
+          chatId,
+          translate(language, "message.language_save_failed"),
+          settingsKeyboard(language),
+        );
+        return;
+      }
+
+      await messenger.sendMessage(
+        chatId,
+        translate(selectedLanguage, "message.language_saved"),
+        mainKeyboard(selectedLanguage),
+      );
+      return;
+    }
+
+    if (isBackButton(text, language)) {
+      await handleBackButtonPress(messenger, chatId, userState, sessionStore);
+      return;
+    }
+
+    await messenger.sendMessage(
+      chatId,
+      translate(language, "message.select_language"),
+      settingsKeyboard(language),
+    );
+    return;
+  }
+
+  if (text === translate(language, "menu.game")) {
     await sessionStore.delete(chatId);
     await sessionStore.set(chatId, {
       step: "AWAITING_GAME_PLATFORM",
@@ -85,25 +233,25 @@ export async function handleTextMessage(
 
     await messenger.sendMessage(
       chatId,
-      "Choose a platform:",
-      gamePlatformKeyboard,
+      translate(language, "message.choose_platform"),
+      gamePlatformKeyboard(language),
     );
     return;
   }
 
-  if (text === "Find a Movie") {
+  if (text === translate(language, "menu.movie")) {
     await sessionStore.delete(chatId);
     await handleFindMovie(messenger, chatId, sessionStore);
     return;
   }
 
-  if (text === "Find a Series") {
+  if (text === translate(language, "menu.series")) {
     await sessionStore.delete(chatId);
     await handleFindSeries(messenger, chatId, sessionStore);
     return;
   }
 
-  if (isBackButton(text)) {
+  if (isBackButton(text, language)) {
     await handleBackButtonPress(messenger, chatId, userState, sessionStore);
     return;
   }
@@ -157,7 +305,14 @@ export async function handleCallbackQuery(
   chatId: number,
   data: string,
   sessionStore: SessionStore,
+  telegramLanguageCode?: string,
 ) {
+  sessionStore = sessionStoreWithLanguageFallback(
+    messenger,
+    chatId,
+    sessionStore,
+    getTelegramLanguage(telegramLanguageCode),
+  );
   if (data.startsWith("watched_")) {
     await handleWatchedMovieCallback(
       messenger,
@@ -187,8 +342,16 @@ async function handleWatchedMovieCallback(
   data: string,
   sessionStore: SessionStore,
 ) {
+  const language = await sessionStore.getLanguage(chatId);
   const parts = data.split("_");
   const pageId = parts[1];
+  if (!pageId) {
+    await messenger.answerCallbackQuery(callbackQueryId, {
+      text: translate(language, "message.movie_callback_not_found"),
+      show_alert: true,
+    });
+    return;
+  }
   const index = parts[2] ? Number.parseInt(parts[2], 10) : 0;
   const userState = await sessionStore.get(chatId);
 
@@ -206,28 +369,27 @@ async function handleWatchedMovieCallback(
     const title = await getNotionPageTitleById(pageId);
     if (!title) {
       await messenger.answerCallbackQuery(callbackQueryId, {
-        text: "Movie not found. Find it again.",
+        text: translate(language, "message.movie_callback_not_found"),
         show_alert: true,
       });
       return;
     }
 
     notionTitle = title;
-    const moviesDetails = await getMoviesByNotionTitle(title);
-    const seriesDetails = await getSeriesByNotionTitle(title);
+    const moviesDetails = await getMoviesByNotionTitle(title, language);
+    const seriesDetails = await getSeriesByNotionTitle(title, language);
     if (
       (!moviesDetails || moviesDetails.length === 0) &&
       (!seriesDetails || seriesDetails.length === 0)
     ) {
       await messenger.answerCallbackQuery(callbackQueryId, {
-        text: "Movie not found. Find it again.",
+        text: translate(language, "message.movie_callback_not_found"),
         show_alert: true,
       });
       return;
     }
 
-    genres =
-      moviesDetails?.[index]?.genres ||
+    genres = moviesDetails?.[index]?.genres ||
       moviesDetails?.[0]?.genres ||
       seriesDetails?.[index]?.genres ||
       seriesDetails?.[0]?.genres ||
@@ -241,11 +403,15 @@ async function handleWatchedMovieCallback(
     genres,
   });
 
-  await messenger.sendMessage(chatId, "Enter your rating:", {
-    reply_markup: {
-      force_reply: true,
+  await messenger.sendMessage(
+    chatId,
+    translate(language, "message.enter_rating"),
+    {
+      reply_markup: {
+        force_reply: true,
+      },
     },
-  });
+  );
   await messenger.answerCallbackQuery(callbackQueryId);
 }
 
@@ -256,6 +422,7 @@ async function handleWatchedGameCallback(
   data: string,
   sessionStore: SessionStore,
 ) {
+  const language = await sessionStore.getLanguage(chatId);
   const pageId = data.slice("played_game_".length);
   const userState = await sessionStore.get(chatId);
 
@@ -273,16 +440,16 @@ async function handleWatchedGameCallback(
     const title = await getNotionPageTitleById(pageId);
     if (!title) {
       await messenger.answerCallbackQuery(callbackQueryId, {
-        text: "Game not found. Find it again.",
+        text: translate(language, "message.game_callback_not_found"),
         show_alert: true,
       });
       return;
     }
 
-    const gameDetails = await getGameByNotionTitle(title);
+    const gameDetails = await getGameByNotionTitle(title, language);
     if (!gameDetails) {
       await messenger.answerCallbackQuery(callbackQueryId, {
-        text: "Game not found. Find it again.",
+        text: translate(language, "message.game_callback_not_found"),
         show_alert: true,
       });
       return;
@@ -299,11 +466,15 @@ async function handleWatchedGameCallback(
     genres,
   });
 
-  await messenger.sendMessage(chatId, "Rate the game from 1 to 5:", {
-    reply_markup: {
-      force_reply: true,
+  await messenger.sendMessage(
+    chatId,
+    translate(language, "message.game_rating"),
+    {
+      reply_markup: {
+        force_reply: true,
+      },
     },
-  });
+  );
   await messenger.answerCallbackQuery(callbackQueryId);
 }
 
@@ -314,35 +485,48 @@ async function handleAwaitingRating(
   userState: UserSession,
   sessionStore: SessionStore,
 ) {
+  const language = await sessionStore.getLanguage(chatId);
   const rating = Number(text.trim());
 
   if (Number.isNaN(rating) || rating < 1 || rating > 5) {
-    await messenger.sendMessage(chatId, "Rating must be between 1 and 5");
+    await messenger.sendMessage(
+      chatId,
+      translate(language, "message.invalid_rating"),
+    );
     return;
   }
 
   if (!userState.pageId) {
     await messenger.sendMessage(
       chatId,
-      "Data expired. Find a movie again.",
-      mainKeyboard,
+      translate(language, "message.expired_movie"),
+      mainKeyboard(language),
     );
     await sessionStore.delete(chatId);
     return;
   }
 
   try {
-    await messenger.sendMessage(chatId, "Updating Notion...");
+    await messenger.sendMessage(
+      chatId,
+      translate(language, "message.updating_notion"),
+    );
     await updateMovieInNotion(userState.pageId, rating, userState.genres || []);
     if (userState.notionTitle) {
       await deleteMoviesByNotionTitle(userState.notionTitle);
       await deleteSeriesByNotionTitle(userState.notionTitle);
     }
-    await messenger.sendMessage(chatId, "✅ Page updated in Notion!");
+    await messenger.sendMessage(
+      chatId,
+      translate(language, "message.movie_updated"),
+    );
     await sessionStore.delete(chatId);
   } catch (error) {
     console.error("Error updating Notion:", error);
-    await messenger.sendMessage(chatId, "Something went wrong updating Notion");
+    await messenger.sendMessage(
+      chatId,
+      translate(language, "message.movie_update_failed"),
+    );
     await sessionStore.delete(chatId);
   }
 }
@@ -353,27 +537,42 @@ async function handleAwaitingGamePlatform(
   text: string,
   sessionStore: SessionStore,
 ) {
-  if (isBackButton(text)) {
+  const language = await sessionStore.getLanguage(chatId);
+  if (isBackButton(text, language)) {
     await sessionStore.delete(chatId);
-    await messenger.sendMessage(chatId, "Choose an action:", mainKeyboard);
+    await messenger.sendMessage(
+      chatId,
+      translate(language, "message.choose_action"),
+      mainKeyboard(language),
+    );
     return;
   }
 
-  if (text !== "Playstation" && text !== "PC") {
+  const platform = text === translate(language, "menu.playstation")
+    ? "Playstation"
+    : text === translate(language, "menu.pc")
+    ? "PC"
+    : null;
+
+  if (!platform) {
     await messenger.sendMessage(
       chatId,
-      "Choose a platform:",
-      gamePlatformKeyboard,
+      translate(language, "message.choose_platform"),
+      gamePlatformKeyboard(language),
     );
     return;
   }
 
   await sessionStore.set(chatId, {
     step: "AWAITING_GAME_TYPE",
-    platform: text,
+    platform,
   });
 
-  await messenger.sendMessage(chatId, "Choose game type:", gameTypeKeyboard);
+  await messenger.sendMessage(
+    chatId,
+    translate(language, "message.choose_game_type"),
+    gameTypeKeyboard(language),
+  );
 }
 
 async function handleAwaitingGameType(
@@ -383,14 +582,15 @@ async function handleAwaitingGameType(
   userState: UserSession,
   sessionStore: SessionStore,
 ) {
+  const language = await sessionStore.getLanguage(chatId);
   if (!userState.platform) {
     await sessionStore.set(chatId, {
       step: "AWAITING_GAME_PLATFORM",
     });
     await messenger.sendMessage(
       chatId,
-      "Choose a platform:",
-      gamePlatformKeyboard,
+      translate(language, "message.choose_platform"),
+      gamePlatformKeyboard(language),
     );
     return;
   }
@@ -401,26 +601,32 @@ async function handleAwaitingGameType(
     });
     await messenger.sendMessage(
       chatId,
-      "Choose a platform:",
-      gamePlatformKeyboard,
+      translate(language, "message.choose_platform"),
+      gamePlatformKeyboard(language),
     );
     return;
   }
 
-  if (isBackButton(text)) {
+  if (isBackButton(text, language)) {
     await sessionStore.set(chatId, {
       step: "AWAITING_GAME_PLATFORM",
     });
     await messenger.sendMessage(
       chatId,
-      "Choose a platform:",
-      gamePlatformKeyboard,
+      translate(language, "message.choose_platform"),
+      gamePlatformKeyboard(language),
     );
     return;
   }
 
-  if (text !== "📖 Story-driven" && text !== "🎮 Gameplay-driven") {
-    await messenger.sendMessage(chatId, "Choose game type:", gameTypeKeyboard);
+  const isStory = text === translate(language, "menu.story");
+  const isGameplay = text === translate(language, "menu.gameplay");
+  if (!isStory && !isGameplay) {
+    await messenger.sendMessage(
+      chatId,
+      translate(language, "message.choose_game_type"),
+      gameTypeKeyboard(language),
+    );
     return;
   }
 
@@ -429,7 +635,7 @@ async function handleAwaitingGameType(
     chatId,
     sessionStore,
     userState.platform,
-    text === "📖 Story-driven" ? "story" : "gameplay",
+    isStory ? "story" : "gameplay",
   );
 }
 
@@ -440,39 +646,46 @@ async function handleAwaitingGameRating(
   userState: UserSession,
   sessionStore: SessionStore,
 ) {
+  const language = await sessionStore.getLanguage(chatId);
   const rating = Number(text.trim());
 
   if (Number.isNaN(rating) || rating < 1 || rating > 5) {
-    await messenger.sendMessage(chatId, "Rating must be between 1 and 5");
+    await messenger.sendMessage(
+      chatId,
+      translate(language, "message.invalid_rating"),
+    );
     return;
   }
 
   if (!userState.pageId || !userState.notionTitle) {
     await messenger.sendMessage(
       chatId,
-      "Data expired. Find a game again.",
-      mainKeyboard,
+      translate(language, "message.expired_game"),
+      mainKeyboard(language),
     );
     await sessionStore.delete(chatId);
     return;
   }
 
   try {
-    await messenger.sendMessage(chatId, "Updating Notion...");
+    await messenger.sendMessage(
+      chatId,
+      translate(language, "message.updating_notion"),
+    );
     await updateGameInNotion(userState.pageId, rating, userState.genres || []);
     await deleteGamesByNotionTitle(userState.notionTitle);
     await messenger.sendMessage(
       chatId,
-      "✅ Game updated in Notion!",
-      mainKeyboard,
+      translate(language, "message.game_updated"),
+      mainKeyboard(language),
     );
     await sessionStore.delete(chatId);
   } catch (error) {
     console.error("Error updating game in Notion:", error);
     await messenger.sendMessage(
       chatId,
-      "Something went wrong updating the game in Notion",
-      mainKeyboard,
+      translate(language, "message.game_update_failed"),
+      mainKeyboard(language),
     );
     await sessionStore.delete(chatId);
   }
@@ -485,19 +698,20 @@ async function handleViewingGame(
   userState: UserSession,
   sessionStore: SessionStore,
 ) {
+  const language = await sessionStore.getLanguage(chatId);
   if (userState.platform !== "Playstation" && userState.platform !== "PC") {
     await sessionStore.set(chatId, {
       step: "AWAITING_GAME_PLATFORM",
     });
     await messenger.sendMessage(
       chatId,
-      "Choose a platform:",
-      gamePlatformKeyboard,
+      translate(language, "message.choose_platform"),
+      gamePlatformKeyboard(language),
     );
     return;
   }
 
-  if (!isGameTypeButton(text)) {
+  if (!isGameTypeButton(text, language)) {
     return;
   }
 
@@ -506,7 +720,7 @@ async function handleViewingGame(
     chatId,
     sessionStore,
     userState.platform,
-    text === "📖 Story-driven" ? "story" : "gameplay",
+    text === translate(language, "menu.story") ? "story" : "gameplay",
   );
 }
 
@@ -516,20 +730,25 @@ async function handleBackButtonPress(
   userState: UserSession | null,
   sessionStore: SessionStore,
 ) {
+  const language = await sessionStore.getLanguage(chatId);
   if (userState?.step === "AWAITING_GAME_TYPE") {
     await sessionStore.set(chatId, {
       step: "AWAITING_GAME_PLATFORM",
     });
     await messenger.sendMessage(
       chatId,
-      "Choose a platform:",
-      gamePlatformKeyboard,
+      translate(language, "message.choose_platform"),
+      gamePlatformKeyboard(language),
     );
     return;
   }
 
   await sessionStore.delete(chatId);
-  await messenger.sendMessage(chatId, "Choose an action:", mainKeyboard);
+  await messenger.sendMessage(
+    chatId,
+    translate(language, "message.choose_action"),
+    mainKeyboard(language),
+  );
 }
 
 async function handleFindMovie(
@@ -537,38 +756,46 @@ async function handleFindMovie(
   chatId: number,
   sessionStore: SessionStore,
 ) {
+  const language = await sessionStore.getLanguage(chatId);
   try {
     await messenger.sendMessage(
       chatId,
-      "Looking for a movie in Notion...",
-      mainKeyboard,
+      translate(language, "message.finding_movie"),
+      mainKeyboard(language),
     );
 
     const notionMovie = await getRandomMovieFromNotion();
 
     await messenger.sendMessage(
       chatId,
-      `Found movie: "${notionMovie.title}". Fetching details from TMDB...`,
+      translate(language, "message.found_movie", {
+        title: notionMovie.title,
+      }),
     );
 
-    let moviesDetails = await getMoviesByNotionTitle(notionMovie.title);
+    let moviesDetails = await getMoviesByNotionTitle(
+      notionMovie.title,
+      language,
+    );
 
     if (moviesDetails) {
       console.log(
         `Fetched details for "${notionMovie.title}" from Supabase cache.`,
       );
     } else {
-      moviesDetails = await fetchMovieDetails(notionMovie.title);
+      moviesDetails = await fetchMovieDetails(notionMovie.title, language);
 
       if (moviesDetails && moviesDetails.length > 0) {
-        await saveMovies(notionMovie.title, moviesDetails);
+        await saveMovies(notionMovie.title, language, moviesDetails);
       }
     }
 
     if (!moviesDetails || moviesDetails.length === 0) {
       await messenger.sendMessage(
         chatId,
-        `Could not find details for "${notionMovie.title}" on TMDB. 😢`,
+        translate(language, "message.movie_not_found", {
+          title: notionMovie.title,
+        }),
       );
       return;
     }
@@ -586,7 +813,14 @@ async function handleFindMovie(
         continue;
       }
 
-      const caption = `<b>${movieDetails.title} (${movieDetails.year})</b>\n\n${movieDetails.description}\n\n⭐️ Rating: ${movieDetails.rating.toFixed(1)}\n\n🎬 Genres: ${movieDetails.genres.join(", ")}\n\n📍 Country: ${movieDetails.country}`;
+      const caption =
+        `<b>${movieDetails.title} (${movieDetails.year})</b>\n\n${movieDetails.description}\n\n⭐️ ${
+          translate(language, "caption.rating")
+        }: ${movieDetails.rating.toFixed(1)}\n\n🎬 ${
+          translate(language, "caption.genres")
+        }: ${movieDetails.genres.join(", ")}\n\n📍 ${
+          translate(language, "caption.country")
+        }: ${movieDetails.country}`;
       const googleQuery = encodeURIComponent(
         `${movieDetails.title} watch online`,
       );
@@ -596,17 +830,17 @@ async function handleFindMovie(
           inline_keyboard: [
             [
               {
-                text: "ℹ️ More info",
+                text: translate(language, "button.more_info"),
                 url: `https://www.themoviedb.org/movie/${movieDetails.tmdb_id}`,
               },
             ],
             [
               {
-                text: "✅ Watched",
+                text: translate(language, "button.watched"),
                 callback_data: `watched_${notionMovie.id}_${index}`,
               },
               {
-                text: "🍿 Watch",
+                text: translate(language, "button.watch"),
                 url: `https://www.google.com/search?q=${googleQuery}`,
               },
             ],
@@ -631,7 +865,7 @@ async function handleFindMovie(
     console.error("Error handling Find a Movie:", error);
     await messenger.sendMessage(
       chatId,
-      "Something went wrong fetching data from Notion",
+      translate(language, "message.movie_fetch_failed"),
     );
   }
 }
@@ -641,38 +875,46 @@ async function handleFindSeries(
   chatId: number,
   sessionStore: SessionStore,
 ) {
+  const language = await sessionStore.getLanguage(chatId);
   try {
     await messenger.sendMessage(
       chatId,
-      "Looking for a series in Notion...",
-      mainKeyboard,
+      translate(language, "message.finding_series"),
+      mainKeyboard(language),
     );
 
     const notionSeries = await getRandomSeriesFromNotion();
 
     await messenger.sendMessage(
       chatId,
-      `Found series: "${notionSeries.title}". Fetching details from TMDB...`,
+      translate(language, "message.found_series", {
+        title: notionSeries.title,
+      }),
     );
 
-    let seriesDetails = await getSeriesByNotionTitle(notionSeries.title);
+    let seriesDetails = await getSeriesByNotionTitle(
+      notionSeries.title,
+      language,
+    );
 
     if (seriesDetails) {
       console.log(
         `Fetched details for "${notionSeries.title}" from Supabase cache.`,
       );
     } else {
-      seriesDetails = await fetchSeriesDetails(notionSeries.title);
+      seriesDetails = await fetchSeriesDetails(notionSeries.title, language);
 
       if (seriesDetails && seriesDetails.length > 0) {
-        await saveSeries(notionSeries.title, seriesDetails);
+        await saveSeries(notionSeries.title, language, seriesDetails);
       }
     }
 
     if (!seriesDetails || seriesDetails.length === 0) {
       await messenger.sendMessage(
         chatId,
-        `Could not find details for "${notionSeries.title}" on TMDB. 😢`,
+        translate(language, "message.series_not_found", {
+          title: notionSeries.title,
+        }),
       );
       return;
     }
@@ -690,7 +932,15 @@ async function handleFindSeries(
         continue;
       }
 
-      const caption = `<b>${series.title} (${series.year})</b>\n\n${series.description}\n\n⭐️ Rating: ${series.rating.toFixed(1)}\n\n🎬 Genres: ${series.genres.join(", ") || "N/A"}`;
+      const caption =
+        `<b>${series.title} (${series.year})</b>\n\n${series.description}\n\n⭐️ ${
+          translate(language, "caption.rating")
+        }: ${series.rating.toFixed(1)}\n\n🎬 ${
+          translate(language, "caption.genres")
+        }: ${
+          series.genres.join(", ") ||
+          translate(language, "caption.not_available")
+        }`;
 
       const googleQuery = encodeURIComponent(`${series.title} watch online`);
 
@@ -699,17 +949,17 @@ async function handleFindSeries(
           inline_keyboard: [
             [
               {
-                text: "ℹ️ More info",
+                text: translate(language, "button.more_info"),
                 url: `https://www.themoviedb.org/tv/${series.tmdb_id}`,
               },
             ],
             [
               {
-                text: "✅ Watched",
+                text: translate(language, "button.watched"),
                 callback_data: `watched_${notionSeries.id}_${index}`,
               },
               {
-                text: "🍿 Watch",
+                text: translate(language, "button.watch"),
                 url: `https://www.google.com/search?q=${googleQuery}`,
               },
             ],
@@ -734,7 +984,7 @@ async function handleFindSeries(
     console.error("Error handling Find a Series:", error);
     await messenger.sendMessage(
       chatId,
-      "Something went wrong fetching series data",
+      translate(language, "message.series_fetch_failed"),
     );
   }
 }
@@ -746,8 +996,12 @@ async function handleFindGame(
   platformChoice: "Playstation" | "PC",
   styleChoice: "story" | "gameplay",
 ) {
+  const language = await sessionStore.getLanguage(chatId);
   try {
-    await messenger.sendMessage(chatId, "Looking for a game in Notion...");
+    await messenger.sendMessage(
+      chatId,
+      translate(language, "message.finding_game"),
+    );
 
     const notionGame = await getRandomGameFromNotion(
       platformChoice,
@@ -756,10 +1010,15 @@ async function handleFindGame(
 
     await messenger.sendMessage(
       chatId,
-      `Found game: "${notionGame.title}". Fetching details from IGDB...`,
+      translate(language, "message.found_game", {
+        title: notionGame.title,
+      }),
     );
 
-    let gameDetails = await getGameByNotionTitle(notionGame.title);
+    let gameDetails = await getGameByNotionTitle(
+      notionGame.title,
+      language,
+    );
 
     if (gameDetails) {
       console.log(
@@ -771,6 +1030,7 @@ async function handleFindGame(
       if (gameDetails) {
         await saveGame(
           notionGame.title,
+          language,
           notionGame.platforms.join(", "),
           gameDetails,
         );
@@ -781,8 +1041,10 @@ async function handleFindGame(
       await sessionStore.delete(chatId);
       await messenger.sendMessage(
         chatId,
-        `Could not find details for "${notionGame.title}" on IGDB. 😢`,
-        mainKeyboard,
+        translate(language, "message.game_not_found", {
+          title: notionGame.title,
+        }),
+        mainKeyboard(language),
       );
       return;
     }
@@ -796,18 +1058,28 @@ async function handleFindGame(
     });
 
     const trimmedDescription = trimToSentenceCount(gameDetails.description, 2);
-    const caption = `<b>${gameDetails.title} (${gameDetails.year})</b>\n\n${trimmedDescription}\n\n⭐ Rating: ${gameDetails.rating.toFixed(1)}\n\n🎭 Genres: ${gameDetails.genres.join(", ") || "N/A"}\n\n🕹️ Platform: ${notionGame.platforms.join(", ") || platformChoice}`;
+    const caption =
+      `<b>${gameDetails.title} (${gameDetails.year})</b>\n\n${trimmedDescription}\n\n⭐ ${
+        translate(language, "caption.rating")
+      }: ${gameDetails.rating.toFixed(1)}\n\n🎭 ${
+        translate(language, "caption.genres")
+      }: ${
+        gameDetails.genres.join(", ") ||
+        translate(language, "caption.not_available")
+      }\n\n🕹️ ${translate(language, "caption.platform")}: ${
+        notionGame.platforms.join(", ") || platformChoice
+      }`;
 
     const inlineKeyboard = {
       reply_markup: {
         inline_keyboard: [
           [
             {
-              text: "✅ Played",
+              text: translate(language, "button.played"),
               callback_data: `played_game_${notionGame.id}`,
             },
             {
-              text: "ℹ️ More info",
+              text: translate(language, "button.more_info"),
               url: gameDetails.url,
             },
           ],
@@ -832,8 +1104,8 @@ async function handleFindGame(
     await sessionStore.delete(chatId);
     await messenger.sendMessage(
       chatId,
-      "Something went wrong fetching game data",
-      mainKeyboard,
+      translate(language, "message.game_fetch_failed"),
+      mainKeyboard(language),
     );
   }
 }
@@ -854,10 +1126,13 @@ function trimToSentenceCount(text: string, maxSentences: number): string {
   return `${sentenceMatches.slice(0, maxSentences).join(" ").trim()}`;
 }
 
-function isBackButton(text: string): boolean {
-  return text.trim().toLowerCase() === backButtonText;
+function isBackButton(text: string, language: Language): boolean {
+  return text === translate(language, "menu.back");
 }
 
-function isGameTypeButton(text: string): boolean {
-  return text === "📖 Story-driven" || text === "🎮 Gameplay-driven";
+function isGameTypeButton(text: string, language: Language): boolean {
+  return (
+    text === translate(language, "menu.story") ||
+    text === translate(language, "menu.gameplay")
+  );
 }

@@ -5,7 +5,8 @@ import {
   webhookCallback,
 } from "https://deno.land/x/grammy@v1.38.3/mod.ts";
 
-import { createSessionStore } from "../../../src/bot/create-session-store.ts";
+import { SupabaseSessionStore } from "../../../src/bot/session-store.supabase.ts";
+import { getEnvVar } from "../../../src/runtime/env.ts";
 import {
   handleCallbackQuery,
   handleStartCommand,
@@ -16,7 +17,12 @@ const telegramBotToken = Deno.env.get("TELEGRAM_BOT_TOKEN") || "";
 const webhookSecret = Deno.env.get("SUPA_FUNCTION_SECRET") || "";
 
 const bot = new Bot(telegramBotToken);
-const sessionStore = createSessionStore();
+const supabaseUrl = getEnvVar("SUPA_URL");
+const supabaseSecretKey = getEnvVar("SUPA_SECRET_KEY");
+if (!supabaseUrl || !supabaseSecretKey) {
+  throw new Error("SUPA_URL and SUPA_SECRET_KEY are required");
+}
+const sessionStore = new SupabaseSessionStore(supabaseUrl, supabaseSecretKey);
 
 const messenger = {
   sendMessage(chatId: number, text: string, options?: Record<string, unknown>) {
@@ -42,7 +48,12 @@ bot.command("start", async (ctx) => {
     return;
   }
 
-  await handleStartCommand(messenger, ctx.chat.id);
+  await handleStartCommand(
+    messenger,
+    ctx.chat.id,
+    sessionStore,
+    ctx.from?.language_code,
+  );
 });
 
 bot.on("message:text", async (ctx) => {
@@ -55,6 +66,8 @@ bot.on("message:text", async (ctx) => {
     ctx.chat.id,
     ctx.message.text,
     sessionStore,
+    ctx.chat.type === "private",
+    ctx.from?.language_code,
   );
 });
 
@@ -70,6 +83,7 @@ bot.on("callback_query:data", async (ctx) => {
     chatId,
     ctx.callbackQuery.data,
     sessionStore,
+    ctx.from?.language_code,
   );
 });
 

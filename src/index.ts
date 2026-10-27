@@ -1,4 +1,4 @@
-import { createSessionStore } from "./bot/create-session-store";
+import { SupabaseSessionStore } from "./bot/session-store.supabase";
 import { getEnvVar } from "./runtime/env";
 import { setupBot } from "./services/bot";
 
@@ -9,6 +9,8 @@ const requiredEnvVars = [
   "NOTION_SERIES_DATABASE_ID",
   "NOTION_GAMES_DATABASE_ID",
   "TMDB_API_KEY",
+  "SUPA_URL",
+  "SUPA_SECRET_KEY",
 ];
 
 for (const envVar of requiredEnvVars) {
@@ -19,6 +21,9 @@ for (const envVar of requiredEnvVars) {
 }
 
 console.log("Starting PopcornPal bot...");
-const sessionStore = createSessionStore();
+const sessionStore = new SupabaseSessionStore(
+  getEnvVar("SUPA_URL")!,
+  getEnvVar("SUPA_SECRET_KEY")!,
+);
 setupBot(getEnvVar("TELEGRAM_BOT_TOKEN")!, sessionStore);
 console.log("Bot is running.");

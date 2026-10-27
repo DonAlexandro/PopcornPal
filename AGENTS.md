@@ -21,9 +21,7 @@ src/                        # Shared logic (dual-runtime: Deno + Node/Bun)
     handlers.ts             # All Telegram message/callback handlers
     messenger.ts            # BotMessenger interface (decouples handlers from framework)
     session-store.ts        # SessionStore interface + UserSession types
-    session-store.memory.ts # In-memory implementation (default)
     session-store.supabase.ts # Supabase-persisted implementation
-    create-session-store.ts # Factory: reads SESSION_STORE_DRIVER env var
   runtime/env.ts            # getEnvVar() — works in both Deno and Node/Bun
   services/
     bot.ts                  # node-telegram-bot-api setup (Node/Bun only)
@@ -42,9 +40,9 @@ The Edge Function imports `src/` directly via relative paths (`../../../src/…`
 
 - **Dual-runtime env access**: Always use `getEnvVar()` from `src/runtime/env.ts` — never access `process.env` or `Deno.env` directly.
 - **BotMessenger abstraction**: Handlers in `src/bot/handlers.ts` receive a `BotMessenger` interface, not a framework object. Keep handlers framework-agnostic.
-- **UI language**: All user-facing bot messages are in **Ukrainian**. Button texts like `"Знайти кіно"`, `"Знайти гру"`, `"<< назад"` are hardcoded string literals — match them exactly in handler comparisons.
+- **UI language**: User-facing bot messages support English and Ukrainian through `src/i18n.ts`; English is the fallback. Persist each chat's language in `public.bot_sessions`.
 - **Session steps** are typed in `SessionStore` — see `src/bot/session-store.ts` for valid `SessionStep` values before adding new flow steps.
-- **DB client is always created** in `src/services/db.ts`, regardless of `SESSION_STORE_DRIVER`. `SUPA_URL` and `SUPA_SECRET_KEY` are always required at runtime.
+- **Supabase is required** for sessions and caches in every runtime. `SUPA_URL` and `SUPA_SECRET_KEY` are always required.
 
 ## Environment Variables
 
@@ -58,10 +56,9 @@ The Edge Function imports `src/` directly via relative paths (`../../../src/…`
 | `TMDB_API_KEY`              | Always   |                                                          |
 | `IGDB_CLIENT_ID`            | Always   |                                                          |
 | `IGDB_CLIENT_SECRET`        | Always   |                                                          |
-| `SUPA_URL`                  | Always   | Required even with `SESSION_STORE_DRIVER=memory` (db.ts) |
-| `SUPA_SECRET_KEY`           | Always   | Same reason as above                                     |
+| `SUPA_URL`                  | Always   | Supabase sessions and caches                             |
+| `SUPA_SECRET_KEY`           | Always   | Supabase sessions and caches                             |
 | `SUPA_FUNCTION_SECRET`      | Always   | Telegram `secret_token` — only `A-Z a-z 0-9 _ -` allowed |
-| `SESSION_STORE_DRIVER`      | Optional | `memory` (default) or `supabase`                         |
 
 Local env file: `supabase/functions/.env.local` (copy from `.env.example`).
 

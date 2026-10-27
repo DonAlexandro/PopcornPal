@@ -153,7 +153,8 @@ function mapIgdbGame(game: IgdbGameResponse): GameDetails {
     ? String(new Date(game.first_release_date * 1000).getUTCFullYear())
     : "N/A";
   const genres = game.genres?.map((genre) => genre.name) ?? [];
-  const description = game.summary || game.storyline || "Опис відсутній.";
+  const description = game.summary || game.storyline ||
+    "No description available.";
   const rating = game.total_rating ?? game.rating ?? 0;
 
   return {

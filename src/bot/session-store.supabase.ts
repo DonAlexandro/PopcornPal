@@ -1,14 +1,15 @@
-import { createClient } from "npm:@supabase/supabase-js@2.103.3";
-import type { SessionStore, UserSession } from "./session-store.ts";
+import { createClient } from "@supabase/supabase-js";
+import type { Language, SessionStore, UserSession } from "./session-store.ts";
 
 interface BotSessionRow {
   chat_id: number;
-  step: UserSession["step"];
+  step: UserSession["step"] | null;
   page_id: string | null;
   options: string[][] | null;
   genres: string[] | null;
   platform: string | null;
   notion_title: string | null;
+  language: Language;
 }
 
 export class SupabaseSessionStore implements SessionStore {
@@ -27,10 +28,10 @@ export class SupabaseSessionStore implements SessionStore {
 
     if (error) {
       console.error("Error fetching bot session from Supabase:", error);
-      return null;
+      throw new Error("Could not load the bot session");
     }
 
-    if (!data) {
+    if (!data?.step) {
       return null;
     }
 
@@ -58,17 +59,64 @@ export class SupabaseSessionStore implements SessionStore {
 
     if (error) {
       console.error("Error saving bot session to Supabase:", error);
+      throw new Error("Could not save the bot session");
     }
   }
 
   async delete(chatId: number): Promise<void> {
     const { error } = await this.supabase
       .from("bot_sessions")
-      .delete()
+      .update({
+        step: null,
+        page_id: null,
+        options: null,
+        genres: null,
+        platform: null,
+        notion_title: null,
+        updated_at: new Date().toISOString(),
+      })
       .eq("chat_id", chatId);
 
     if (error) {
       console.error("Error deleting bot session from Supabase:", error);
+      throw new Error("Could not clear the bot session");
+    }
+  }
+
+  async getLanguage(chatId: number): Promise<Language> {
+    const { data, error } = await this.supabase
+      .from("bot_sessions")
+      .select("language")
+      .eq("chat_id", chatId)
+      .maybeSingle<{ language: Language }>();
+
+    if (error) {
+      console.error("Error fetching bot language from Supabase:", error);
+      throw new Error("Could not load the saved language preference");
+    }
+
+    return data?.language ?? "en";
+  }
+
+  async setLanguage(chatId: number, language: Language): Promise<void> {
+    const { error } = await this.supabase.from("bot_sessions").upsert(
+      {
+        chat_id: chatId,
+        step: null,
+        page_id: null,
+        options: null,
+        genres: null,
+        platform: null,
+        notion_title: null,
+        language,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "chat_id" },
+    );
+
+    if (error) {
+      console.error("Error saving bot language to Supabase:", error);
+      throw new Error("Could not save the language preference");
     }
   }
 }

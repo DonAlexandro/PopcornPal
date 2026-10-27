@@ -68,7 +68,7 @@ flowchart TD
   U[Telegram User] --> T[Telegram Update]
   T --> E[Supabase Edge Function telegram-bot]
   E --> H[src/bot/handlers.ts]
-  H --> S[SessionStore memory or supabase]
+  H --> S[Supabase bot_sessions]
   H --> N[Notion API]
   H --> C[Supabase cache tables]
   H --> M[TMDB for movies/series]

@@ -813,14 +813,15 @@ async function handleFindMovie(
         continue;
       }
 
-      const caption =
-        `<b>${movieDetails.title} (${movieDetails.year})</b>\n\n${movieDetails.description}\n\n⭐️ ${
-          translate(language, "caption.rating")
-        }: ${movieDetails.rating.toFixed(1)}\n\n🎬 ${
-          translate(language, "caption.genres")
-        }: ${movieDetails.genres.join(", ")}\n\n📍 ${
-          translate(language, "caption.country")
-        }: ${movieDetails.country}`;
+      const caption = `<b>${movieDetails.title} (${movieDetails.year})</b>\n\n${
+        localizedDescription(movieDetails.description, language)
+      }\n\n⭐️ ${translate(language, "caption.rating")}: ${
+        movieDetails.rating.toFixed(1)
+      }\n\n🎬 ${translate(language, "caption.genres")}: ${
+        movieDetails.genres.join(", ")
+      }\n\n📍 ${
+        translate(language, "caption.country")
+      }: ${movieDetails.country}`;
       const googleQuery = encodeURIComponent(
         `${movieDetails.title} watch online`,
       );
@@ -932,15 +933,14 @@ async function handleFindSeries(
         continue;
       }
 
-      const caption =
-        `<b>${series.title} (${series.year})</b>\n\n${series.description}\n\n⭐️ ${
-          translate(language, "caption.rating")
-        }: ${series.rating.toFixed(1)}\n\n🎬 ${
-          translate(language, "caption.genres")
-        }: ${
-          series.genres.join(", ") ||
-          translate(language, "caption.not_available")
-        }`;
+      const caption = `<b>${series.title} (${series.year})</b>\n\n${
+        localizedDescription(series.description, language)
+      }\n\n⭐️ ${translate(language, "caption.rating")}: ${
+        series.rating.toFixed(1)
+      }\n\n🎬 ${translate(language, "caption.genres")}: ${
+        series.genres.join(", ") ||
+        translate(language, "caption.not_available")
+      }`;
 
       const googleQuery = encodeURIComponent(`${series.title} watch online`);
 
@@ -1057,7 +1057,11 @@ async function handleFindGame(
       platform: platformChoice,
     });
 
-    const trimmedDescription = trimToSentenceCount(gameDetails.description, 2);
+    const trimmedDescription = trimToSentenceCount(
+      localizedDescription(gameDetails.description, language),
+      2,
+      translate(language, "caption.no_description"),
+    );
     const caption =
       `<b>${gameDetails.title} (${gameDetails.year})</b>\n\n${trimmedDescription}\n\n⭐ ${
         translate(language, "caption.rating")
@@ -1110,11 +1114,28 @@ async function handleFindGame(
   }
 }
 
-function trimToSentenceCount(text: string, maxSentences: number): string {
+function localizedDescription(description: string, language: Language): string {
+  const normalized = description.trim();
+  if (
+    !normalized ||
+    normalized === "No description available." ||
+    normalized === "Опис відсутній."
+  ) {
+    return translate(language, "caption.no_description");
+  }
+
+  return description;
+}
+
+function trimToSentenceCount(
+  text: string,
+  maxSentences: number,
+  fallback: string,
+): string {
   const normalizedText = text.replaceAll(/\s+/g, " ").trim();
 
   if (!normalizedText) {
-    return "No description available.";
+    return fallback;
   }
 
   const sentenceMatches = normalizedText.match(/(?:[^.!?]+[.!?]+|[^.!?]+$)/g);

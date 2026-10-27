@@ -131,8 +131,8 @@ function scoreGameCandidate(
   candidate: IgdbGameResponse,
 ): number {
   const normalizedCandidate = normalizeTitle(candidate.name);
-  const ratingScore =
-    candidate.total_rating_count ?? candidate.rating_count ?? 0;
+  const ratingScore = candidate.total_rating_count ?? candidate.rating_count ??
+    0;
   const qualityScore = candidate.total_rating ?? candidate.rating ?? 0;
 
   let matchScore = 0;
@@ -153,8 +153,7 @@ function mapIgdbGame(game: IgdbGameResponse): GameDetails {
     ? String(new Date(game.first_release_date * 1000).getUTCFullYear())
     : "N/A";
   const genres = game.genres?.map((genre) => genre.name) ?? [];
-  const description = game.summary || game.storyline ||
-    "No description available.";
+  const description = game.summary || game.storyline || "";
   const rating = game.total_rating ?? game.rating ?? 0;
 
   return {

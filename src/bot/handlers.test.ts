@@ -2,6 +2,18 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { BotMessenger } from "./messenger.ts";
 import type { Language, SessionStore, UserSession } from "./session-store.ts";
 
+let notionGame = { id: "page", title: "Game title", platforms: ["PC"] };
+let fetchedGame: {
+  igdb_id: number;
+  title: string;
+  year: string;
+  description: string;
+  rating: number;
+  genres: string[];
+  posterUrl: string | null;
+  url: string;
+} | null = null;
+
 mock.module("../services/db.ts", () => ({
   deleteGamesByNotionTitle: async () => {},
   deleteMoviesByNotionTitle: async () => {},
@@ -16,7 +28,7 @@ mock.module("../services/db.ts", () => ({
 
 mock.module("../services/notion.ts", () => ({
   getNotionPageTitleById: async () => null,
-  getRandomGameFromNotion: async () => null,
+  getRandomGameFromNotion: async () => notionGame,
   getRandomMovieFromNotion: async () => null,
   getRandomSeriesFromNotion: async () => null,
   updateGameInNotion: async () => {},
@@ -24,7 +36,7 @@ mock.module("../services/notion.ts", () => ({
 }));
 
 mock.module("../services/igdb.ts", () => ({
-  fetchGameDetails: async () => null,
+  fetchGameDetails: async () => fetchedGame,
 }));
 
 mock.module("../services/tmdb.ts", () => ({
@@ -147,5 +159,27 @@ describe("language settings", () => {
     expect(messages[0]?.text).toBe(
       "Тимчасово не вдалося завантажити налаштування профілю. Будь ласка, спробуйте ще раз трохи пізніше.",
     );
+  });
+
+  it("localizes missing provider descriptions in Ukrainian", async () => {
+    store.language = "uk";
+    fetchedGame = {
+      igdb_id: 1,
+      title: "Game title",
+      year: "2025",
+      description: "",
+      rating: 0,
+      genres: [],
+      posterUrl: null,
+      url: "https://example.com",
+    };
+
+    await handleTextMessage(messenger, 1, "🎮 Знайти гру", store);
+    await handleTextMessage(messenger, 1, "ПК", store);
+    await handleTextMessage(messenger, 1, "📖 Сюжетна гра", store);
+
+    expect(messages.at(-1)?.text).toContain("Опис відсутній.");
+    fetchedGame = null;
+    notionGame = { id: "page", title: "Game title", platforms: ["PC"] };
   });
 });
